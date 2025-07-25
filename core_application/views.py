@@ -21,6 +21,14 @@ def student_login(request):
     
     return render(request, 'student/auth/login.html')
 
+from django.contrib.auth import logout
+from django.shortcuts import redirect
+
+def student_logout(request):
+    logout(request)
+    return redirect('student_login')  # This should match your login URL name
+
+
 @login_required
 def student_dashboard(request):
     """Main dashboard for logged-in students"""
@@ -259,3 +267,64 @@ def handle_unit_enrollment(request, student, current_semester, available_units):
             messages.error(request, error)
     
     return redirect('student_units')
+
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+from .models import User, Student
+
+@login_required
+def student_profile(request):
+    student = request.user.student_profile
+    
+    if request.method == 'POST':
+        # Handle profile picture upload
+        if 'profile_picture' in request.FILES:
+            request.user.profile_picture = request.FILES['profile_picture']
+            request.user.save()
+            messages.success(request, 'Profile picture updated successfully!')
+            return redirect('student_profile')
+        
+        # Handle password change
+        if 'current_password' in request.POST:
+            form = PasswordChangeForm(request.user, request.POST)
+            if form.is_valid():
+                user = form.save()
+                update_session_auth_hash(request, user)
+                messages.success(request, 'Password changed successfully!')
+                return redirect('student_profile')
+            else:
+                for error in form.errors.values():
+                    messages.error(request, error)
+                return redirect('student_profile#Password')
+        
+        # Handle profile updates
+        try:
+            # Update User model fields
+            user_fields = ['first_name', 'last_name', 'email', 'phone', 'address']
+            for field in user_fields:
+                if field in request.POST:
+                    setattr(request.user, field, request.POST[field])
+            
+            # Update Student model fields
+            student_fields = ['guardian_name', 'guardian_phone', 'guardian_relationship', 
+                            'guardian_address', 'emergency_contact', 'blood_group', 
+                            'medical_conditions']
+            for field in student_fields:
+                if field in request.POST:
+                    setattr(student, field, request.POST[field])
+            
+            request.user.save()
+            student.save()
+            messages.success(request, 'Profile updated successfully!')
+        except Exception as e:
+            messages.error(request, f'Error updating profile: {str(e)}')
+        
+        return redirect('student_profile')
+    
+    context = {
+        'student': student,
+    }
+    return render(request, 'student/student_profile.html', context)
