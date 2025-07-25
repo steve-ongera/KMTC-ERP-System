@@ -302,6 +302,35 @@ class Semester(models.Model):
     def __str__(self):
         return f"{self.academic_year.year} - Semester {self.semester_number}"
 
+
+class StudentReporting(models.Model):
+    REPORTING_TYPES = (
+        ('online', 'Online Reporting'),
+        ('physical', 'Physical Reporting'),
+    )
+    
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    )
+    
+    student = models.ForeignKey('Student', on_delete=models.CASCADE)
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE)
+    reporting_type = models.CharField(max_length=10, choices=REPORTING_TYPES, default='online')
+    reporting_date = models.DateTimeField(auto_now_add=True)
+    remarks = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    processed_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True)
+    processed_date = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        unique_together = ('student', 'semester')
+        ordering = ['-reporting_date']
+        
+    def __str__(self):
+        return f"{self.student.registration_number} - {self.semester}"
+    
 class Enrollment(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='enrollments')
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='enrollments')
