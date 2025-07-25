@@ -122,7 +122,7 @@
     <nav class="sidenav">
         <ul class="menu">
             <li class="menu-link active" id="dashboard">
-                <a class="menu_sub" href="#"> <i class="ri-dashboard-line"></i> <span>Dashboard</span></a>
+                <a class="menu_sub" href="{% url 'student_dashboard'%}"> <i class="ri-dashboard-line"></i> <span>Dashboard</span></a>
             </li>
             <li class="menu-link" id="socials">
                 <a href="javascript:void(0);" class="menu_sub">
@@ -177,7 +177,7 @@
                 </a>
                 <ul>
                     <li class="sub-item">
-                        <a id="academicSchedule" href="#">Units/Curriculum</a>
+                        <a id="academicSchedule" href="{% url 'student_units'%}">Units/Curriculum</a>
                     </li>
                     <li class="sub-item">
                         <a id="academicExamCard" href="#">Examcard </a>

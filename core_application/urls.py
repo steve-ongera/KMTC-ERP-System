@@ -9,7 +9,7 @@ urlpatterns = [
     
     # Student dashboard and main views
     path('dashboard/', views.student_dashboard, name='student_dashboard'),
-    path('profile/', views.student_profile, name='student_profile'),
-    path('available-units/', views.available_units, name='available_units'),
-    path('enroll/<int:unit_id>/', views.enroll_unit, name='enroll_unit'),
+    path('units/', views.student_units_view, name='student_units'),
+    path('units/available/', views.get_available_units_ajax, name='available_units_ajax'),
+
 ]
