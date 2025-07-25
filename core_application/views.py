@@ -19,7 +19,7 @@ def student_login(request):
         else:
             messages.error(request, 'Invalid credentials or not a student account')
     
-    return render(request, 'students/login.html')
+    return render(request, 'student/auth/login.html')
 
 @login_required
 def student_dashboard(request):
@@ -55,7 +55,7 @@ def student_dashboard(request):
         'fee_balance': fee_balance,
     }
     
-    return render(request, 'students/dashboard.html', context)
+    return render(request, 'student/dashboard.html', context)
 
 @login_required
 def available_units(request):
