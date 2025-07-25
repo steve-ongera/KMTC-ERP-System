@@ -1,0 +1,306 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if faculty %}Edit Faculty - {{ faculty.user.get_full_name }}{% else %}Add New Faculty{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">
+                    {% if faculty %}Edit Faculty - {{ faculty.user.get_full_name }}{% else %}Add New Faculty{% endif %}
+                </p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="btn-group float-end">
+                    <a href="{% url 'faculty_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-12">
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <!-- Personal Information Card -->
+                <div class="col-md-12 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-person-vcard"></i> Personal Information
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">First Name *</label>
+                                    <input type="text" class="form-control" id="first_name" name="first_name" 
+                                           value="{% if faculty %}{{ faculty.user.first_name }}{% endif %}" required>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Last Name *</label>
+                                    <input type="text" class="form-control" id="last_name" name="last_name" 
+                                           value="{% if faculty %}{{ faculty.user.last_name }}{% endif %}" required>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Username *</label>
+                                    <input type="text" class="form-control" id="username" name="username" 
+                                           value="{% if faculty %}{{ faculty.user.username }}{% endif %}" required>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Email *</label>
+                                    <input type="email" class="form-control" id="email" name="email" 
+                                           value="{% if faculty %}{{ faculty.user.email }}{% endif %}" required>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Password {% if not faculty %}*{% endif %}</label>
+                                    <input type="password" class="form-control" id="password" name="password" 
+                                           {% if not faculty %}required{% endif %}>
+                                    {% if faculty %}
+                                        <small class="form-text text-muted">Leave blank to keep current password</small>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Phone</label>
+                                    <input type="text" class="form-control" id="phone" name="phone" 
+                                           value="{% if faculty %}{{ faculty.user.phone }}{% endif %}">
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Gender</label>
+                                    <select class="form-control" id="gender" name="gender">
+                                        <option value="">Select Gender</option>
+                                        <option value="male" {% if faculty and faculty.user.gender == 'male' %}selected{% endif %}>Male</option>
+                                        <option value="female" {% if faculty and faculty.user.gender == 'female' %}selected{% endif %}>Female</option>
+                                        <option value="other" {% if faculty and faculty.user.gender == 'other' %}selected{% endif %}>Other</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Date of Birth</label>
+                                    <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" 
+                                           value="{% if faculty and faculty.user.date_of_birth %}{{ faculty.user.date_of_birth|date:'Y-m-d' }}{% endif %}">
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Profile Picture</label>
+                                    <input type="file" class="form-control" id="profile_picture" name="profile_picture">
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Blood Group</label>
+                                    <input type="text" class="form-control" id="blood_group" name="blood_group" 
+                                           value="{% if faculty %}{{ faculty.blood_group }}{% endif %}">
+                                </div>
+                                
+                                <div class="col-12 mb-3">
+                                    <label class="small text-muted">Address</label>
+                                    <textarea class="form-control" id="address" name="address" rows="3">{% if faculty %}{{ faculty.user.address }}{% endif %}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Professional Information Card -->
+                <div class="col-md-12 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-briefcase"></i> Professional Information
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Employee ID *</label>
+                                    <input type="text" class="form-control" id="employee_id" name="employee_id" 
+                                           value="{% if faculty %}{{ faculty.employee_id }}{% endif %}" required>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Department *</label>
+                                    <select class="form-control" id="department" name="department" required>
+                                        <option value="">Select Department</option>
+                                        {% for department in departments %}
+                                            <option value="{{ department.id }}" 
+                                                    {% if faculty and faculty.department.id == department.id %}selected{% endif %}>
+                                                {{ department.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Designation *</label>
+                                    <select class="form-control" id="designation" name="designation" required>
+                                        <option value="">Select Designation</option>
+                                        {% for designation in designations %}
+                                            <option value="{{ designation.0 }}" 
+                                                    {% if faculty and faculty.designation == designation.0 %}selected{% endif %}>
+                                                {{ designation.1 }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Qualification *</label>
+                                    <input type="text" class="form-control" id="qualification" name="qualification" 
+                                           value="{% if faculty %}{{ faculty.qualification }}{% endif %}" required>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Specialization</label>
+                                    <input type="text" class="form-control" id="specialization" name="specialization" 
+                                           value="{% if faculty %}{{ faculty.specialization }}{% endif %}">
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Experience (Years)</label>
+                                    <input type="number" class="form-control" id="experience_years" name="experience_years" 
+                                           value="{% if faculty %}{{ faculty.experience_years }}{% endif %}" min="0">
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Salary</label>
+                                    <input type="number" class="form-control" id="salary" name="salary" 
+                                           value="{% if faculty %}{{ faculty.salary }}{% endif %}" step="0.01">
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Joining Date *</label>
+                                    <input type="date" class="form-control" id="joining_date" name="joining_date" 
+                                           value="{% if faculty %}{{ faculty.joining_date|date:'Y-m-d' }}{% endif %}" required>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="small text-muted">Status</label>
+                                    <select class="form-control" id="is_active" name="is_active">
+                                        <option value="true" {% if faculty and faculty.is_active %}selected{% endif %}>Active</option>
+                                        <option value="false" {% if faculty and not faculty.is_active %}selected{% endif %}>Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Form Actions -->
+                <div class="row">
+                    <div class="col-12 text-end">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="bi bi-save"></i> {% if faculty %}Update Faculty{% else %}Create Faculty{% endif %}
+                        </button>
+                        <a href="{% url 'faculty_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.card {
+    border: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+    padding: 1rem 1.25rem;
+}
+
+.card-title {
+    font-size: 1.1rem;
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #3639A4;
+}
+
+.form-control {
+    border-radius: 8px;
+    padding: 10px 15px;
+}
+
+.form-control:focus {
+    border-color: #3639A4;
+    box-shadow: 0 0 0 0.25rem rgba(54, 57, 164, 0.25);
+}
+
+label {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.btn-primary {
+    background-color: #3639A4;
+    border-color: #3639A4;
+    padding: 10px 20px;
+    border-radius: 8px;
+}
+
+.btn-primary:hover {
+    background-color: #2a2d8a;
+    border-color: #2a2d8a;
+}
+
+.btn-outline-secondary {
+    padding: 10px 20px;
+    border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+    .dashboardRightLabel .btn-group {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .dashboardRightLabel .btn {
+        margin-bottom: 5px;
+        flex-grow: 1;
+    }
+}
+</style>
+
+{% endblock %}

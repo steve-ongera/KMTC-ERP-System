@@ -1,0 +1,475 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Faculty Details</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="btn-group float-end">
+                    <a href="{% url 'faculty_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </a>
+                    <a href="{% url 'faculty_update' faculty.employee_id %}" class="btn btn-outline-primary">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    <a href="{% url 'faculty_delete' faculty.employee_id %}" class="btn btn-outline-danger">
+                        <i class="bi bi-trash"></i> Delete
+                    </a>
+                    <a href="#" class="btn btn-outline-info">
+                        <i class="bi bi-calendar-check"></i> Schedule
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <!-- Profile Picture and Quick Info Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-person-badge"></i> Faculty Profile
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="profile-picture-container mb-3">
+                        {% if faculty.user.profile_picture %}
+                            <img src="{{ faculty.user.profile_picture.url }}" 
+                                 class="profile-picture img-thumbnail rounded-circle" 
+                                 alt="Profile Picture">
+                        {% else %}
+                            <div class="profile-picture-placeholder rounded-circle d-flex align-items-center justify-content-center">
+                                <i class="bi bi-person-fill" style="font-size: 3rem;"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <h4 class="mb-2">{{ faculty.user.get_full_name }}</h4>
+                    <p class="text-muted mb-3">{{ faculty.employee_id }}</p>
+                    
+                    <div class="faculty-status mb-3">
+                        <span class="badge status-badge bg-{% if faculty.is_active %}success{% else %}danger{% endif %}">
+                            {{ faculty.is_active|yesno:"Active,Inactive" }}
+                        </span>
+                    </div>
+                    
+                    <hr class="my-3">
+                    
+                    <div class="quick-info text-start">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Department:</span>
+                            <span class="fw-bold">{{ faculty.department.name }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Designation:</span>
+                            <span class="fw-bold">{{ faculty.get_designation_display }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Joining Date:</span>
+                            <span class="fw-bold">{{ faculty.joining_date|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="#" class="btn btn-primary btn-sm w-100">
+                            <i class="bi bi-calendar-check me-1"></i> View Schedule
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Personal Information Card -->
+        <div class="col-md-8 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-person-vcard"></i> Personal Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Full Name</label>
+                            <p class="fw-bold">{{ faculty.user.get_full_name }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Username</label>
+                            <p class="fw-bold">{{ faculty.user.username }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Email</label>
+                            <p class="fw-bold">{{ faculty.user.email|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Phone</label>
+                            <p class="fw-bold">{{ faculty.user.phone|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Gender</label>
+                            <p class="fw-bold">{{ faculty.user.get_gender_display|default:"Not specified" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Date of Birth</label>
+                            <p class="fw-bold">{{ faculty.user.date_of_birth|date:"M d, Y"|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Blood Group</label>
+                            <p class="fw-bold">{{ faculty.blood_group|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="small text-muted">Address</label>
+                            <p class="fw-bold">{{ faculty.user.address|default:"Not provided" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Professional Information Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-briefcase"></i> Professional Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Department</label>
+                            <p class="fw-bold">{{ faculty.department.name }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Designation</label>
+                            <p class="fw-bold">{{ faculty.get_designation_display }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Qualification</label>
+                            <p class="fw-bold">{{ faculty.qualification|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Specialization</label>
+                            <p class="fw-bold">{{ faculty.specialization|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Experience</label>
+                            <p class="fw-bold">{{ faculty.experience_years }} years</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Salary</label>
+                            <p class="fw-bold">{% if faculty.salary %}{{ faculty.salary }}{% else %}Not provided{% endif %}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Joining Date</label>
+                            <p class="fw-bold">{{ faculty.joining_date|date:"M d, Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Schedule Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-calendar-week"></i> Current Schedule
+                        {% if current_academic_year and current_semester %}
+                            <span class="float-end small fw-normal">
+                                {{ current_academic_year.year }} - Semester {{ current_semester.semester_number }}
+                            </span>
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if scheduled_subjects %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Subject</th>
+                                        <th>Day/Time</th>
+                                        <th>Room</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for schedule in scheduled_subjects %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ schedule.subject.code }}</strong><br>
+                                            <small>{{ schedule.subject.name }}</small>
+                                        </td>
+                                        <td>
+                                            {{ schedule.time_slot.get_day_of_week_display }}<br>
+                                            <small>{{ schedule.time_slot.start_time|time:"H:i" }} - {{ schedule.time_slot.end_time|time:"H:i" }}</small>
+                                        </td>
+                                        <td>
+                                            {{ schedule.classroom.room_number }}<br>
+                                            <small>{{ schedule.classroom.name }}</small>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-calendar-x" style="font-size: 2rem;"></i>
+                            <p class="mt-2">
+                                {% if current_academic_year and current_semester %}
+                                    No subjects scheduled for the current semester.
+                                {% else %}
+                                    No current academic year or semester found.
+                                {% endif %}
+                            </p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- System Information Card -->
+        <div class="col-md-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-info-circle"></i> System Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="small text-muted">Account Created</label>
+                            <p class="fw-bold">{{ faculty.user.created_at|date:"M d, Y H:i" }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="small text-muted">Last Updated</label>
+                            <p class="fw-bold">{{ faculty.user.updated_at|date:"M d, Y H:i" }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="small text-muted">Account Active</label>
+                            <p class="fw-bold">
+                                <span class="badge bg-{% if faculty.user.is_active %}success{% else %}danger{% endif %}">
+                                    {{ faculty.user.is_active|yesno:"Yes,No" }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="small text-muted">Last Login</label>
+                            <p class="fw-bold">{{ faculty.user.last_login|date:"M d, Y H:i"|default:"Never logged in" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal fade">
+    <div class="modal-dialog modal-confirm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header flex-column">
+                <div class="icon-box bg-danger">
+                    <i class="bi bi-x-lg text-white"></i>
+                </div>
+                <h4 class="modal-title fw-bold">Are you sure?</h4>
+            </div>
+            <div class="modal-body text-center">
+                <p>Do you really want to delete this faculty record? This process cannot be undone.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-lg btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-lg btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Delete confirmation modal handling
+    const deleteButton = document.querySelector('.btn-outline-danger');
+    const deleteForm = document.getElementById('deleteForm');
+    
+    if (deleteButton) {
+        deleteButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            const deleteUrl = this.getAttribute('href');
+            deleteForm.setAttribute('action', deleteUrl);
+            
+            const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            modal.show();
+        });
+    }
+});
+</script>
+
+<style>
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.card {
+    border: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+    padding: 1rem 1.25rem;
+}
+
+.card-title {
+    font-size: 1.1rem;
+}
+
+.icon-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 24px;
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #3639A4;
+}
+
+.profile-picture-container {
+    position: relative;
+    margin: 0 auto;
+    width: fit-content;
+}
+
+.profile-picture {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border: 4px solid #f0f0f0;
+    transition: all 0.3s ease;
+}
+
+.profile-picture:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.profile-picture-placeholder {
+    width: 150px;
+    height: 150px;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border: 4px solid #f0f0f0;
+    margin: 0 auto;
+}
+
+.status-badge {
+    font-size: 0.9rem;
+    padding: 0.35rem 0.75rem;
+}
+
+.quick-info {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.modal-confirm .modal-content {
+    border: none;
+    border-radius: 10px;
+}
+
+.modal-confirm .icon-box {
+    background-color: #f8d7da;
+    color: #dc3545;
+}
+
+.modal-confirm .modal-header {
+    border-bottom: none;
+    position: relative;
+}
+
+.modal-confirm h4 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.modal-confirm .modal-body {
+    padding: 20px 40px;
+    font-size: 1.1rem;
+}
+
+.modal-confirm .modal-footer {
+    border-top: none;
+    padding: 20px;
+}
+
+.badge {
+    font-weight: 500;
+    padding: 5px 10px;
+}
+
+.btn-outline-info {
+    border-color: #0dcaf0;
+    color: #0dcaf0;
+}
+
+.btn-outline-info:hover {
+    background-color: #0dcaf0;
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .profile-picture, .profile-picture-placeholder {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .dashboardRightLabel .btn-group {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .dashboardRightLabel .btn {
+        margin-bottom: 5px;
+        flex-grow: 1;
+    }
+}
+</style>
+
+{% endblock %}

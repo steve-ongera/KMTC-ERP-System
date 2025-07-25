@@ -1,0 +1,456 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <h1 class="fw-bold card-title text-start">Admin Dashboard</h1>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="text-end">
+                    <span class="fw-bold text-muted">Today is {{ current_date }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards Row -->
+    <div class="row p-2">
+        <!-- Users Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Users</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_users }}</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-success">{{ active_users }} active</span> | 
+                                <span class="text-info">{{ new_users_today }} new today</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Students Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Students</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_students }}</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-success">{{ active_students }} active</span> | 
+                                <span class="text-info">{{ new_students_today }} new today</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-graduate fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Faculty Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Faculty</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_faculty }}</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-success">{{ active_faculty }} active</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chalkboard-teacher fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Staff Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Staff</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_staff }}</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-success">{{ active_staff }} active</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-tie fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Row -->
+    <div class="row p-2">
+        <!-- Left Column -->
+        <div class="col-md-8">
+            <!-- Academic Overview -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <h5 class="card-title fw-semibold primary-text">Academic Overview</h5>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="#" class="small text-primary">View All</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 col-md-3 mb-4">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Departments</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ total_departments }}</div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-4">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Courses</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ total_courses }}</div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-4">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Subjects</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ total_subjects }}</div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-4">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Clubs</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ total_clubs }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activities -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <h5 class="card-title fw-semibold primary-text">Recent Notifications</h5>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="#" class="small text-primary">View All</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for notification in recent_notifications %}
+                        <div class="list-group-item list-group-item-action border-0 px-0 py-3">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1 fw-semibold">{{ notification.title }}</h6>
+                                <span class="badge bg-{{ notification.notification_type }}">{{ notification.notification_type|title }}</span>
+                            </div>
+                            <p class="mb-1 small text-muted">{{ notification.message|truncatewords:20 }}</p>
+                            <small class="text-muted">Sent by {{ notification.created_by.username }} on {{ notification.created_at|date:"M d, Y" }}</small>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted py-3">
+                            No recent notifications
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col">
+            <!-- Financial Overview -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Financial Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Total Payments</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ total_fee_payments }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Today's Payments</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ today_fee_payments }}</div>
+                        </div>
+                    </div>
+                    
+                    <h6 class="fw-semibold primary-text mb-3">Recent Payments</h6>
+                    <div class="list-group list-group-flush">
+                        {% for payment in recent_payments %}
+                        <div class="list-group-item list-group-item-action border-0 px-0 py-2">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1 small fw-semibold">{{ payment.student.student_id }}</h6>
+                                <span class="text-success fw-bold">{{ payment.amount_paid }}</span>
+                            </div>
+                            <small class="text-muted">{{ payment.payment_method|title }} - {{ payment.payment_date|date:"M d, Y" }}</small>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted py-3">
+                            No recent payments
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-primary btn-sm">
+                            <i class="fas fa-user-plus me-1"></i> Add Student
+                        </a>
+                        <a href="#" class="btn btn-success btn-sm">
+                            <i class="fas fa-chalkboard-teacher me-1"></i> Add Faculty
+                        </a>
+                        <a href="#" class="btn btn-info btn-sm">
+                            <i class="fas fa-bell me-1"></i> Send Notice
+                        </a>
+                        <a href="#" class="btn btn-warning btn-sm">
+                            <i class="fas fa-calendar-plus me-1"></i> Add Event
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Sections Row -->
+    <div class="row p-2">
+        <!-- Hostel Overview -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <h5 class="card-title fw-semibold primary-text">Hostel Overview</h5>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="#" class="small text-primary">Manage</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Hostels</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ total_hostels }}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Bookings</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ total_hostel_bookings }}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Pending</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ pending_hostel_bookings }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upcoming Events -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <h5 class="card-title fw-semibold primary-text">Upcoming Events</h5>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="#" class="small text-primary">View All</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for event in recent_events %}
+                        <div class="list-group-item list-group-item-action border-0 px-0 py-2">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1 small fw-semibold">{{ event.title }}</h6>
+                                <span class="badge bg-{{ event.event_type }}">{{ event.event_type|title }}</span>
+                            </div>
+                            <p class="mb-1 small text-muted">{{ event.description|truncatewords:10 }}</p>
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">{{ event.venue }}</small>
+                                <small class="text-muted">{{ event.start_date|date:"M d, Y" }}</small>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted py-3">
+                            No upcoming events
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="{% static 'vendor/chart.js/Chart.min.js' %}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize any charts or dynamic elements here
+    // Example attendance chart
+    var ctx = document.getElementById('attendanceChart');
+    if (ctx) {
+        var myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Present', 'Absent', 'Late', 'Excused'],
+                datasets: [{
+                    label: 'Attendance Status',
+                    data: [
+                        {% for status in attendance_summary %}
+                            {% if status.status == 'present' %}{{ status.count }}{% endif %}
+                        {% endfor %},
+                        {% for status in attendance_summary %}
+                            {% if status.status == 'absent' %}{{ status.count }}{% endif %}
+                        {% endfor %},
+                        {% for status in attendance_summary %}
+                            {% if status.status == 'late' %}{{ status.count }}{% endif %}
+                        {% endfor %},
+                        {% for status in attendance_summary %}
+                            {% if status.status == 'excused' %}{{ status.count }}{% endif %}
+                        {% endfor %}
+                    ],
+                    backgroundColor: [
+                        'rgba(40, 167, 69, 0.7)',
+                        'rgba(220, 53, 69, 0.7)',
+                        'rgba(255, 193, 7, 0.7)',
+                        'rgba(23, 162, 184, 0.7)'
+                    ],
+                    borderColor: [
+                        'rgba(40, 167, 69, 1)',
+                        'rgba(220, 53, 69, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(23, 162, 184, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+
+<style>
+/* Custom styles for admin dashboard */
+.card {
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.card-header {
+    padding: 1rem 1.25rem;
+}
+
+.border-left-primary {
+    border-left: 0.25rem solid #4e73df !important;
+}
+
+.border-left-success {
+    border-left: 0.25rem solid #1cc88a !important;
+}
+
+.border-left-info {
+    border-left: 0.25rem solid #36b9cc !important;
+}
+
+.border-left-warning {
+    border-left: 0.25rem solid #f6c23e !important;
+}
+
+.list-group-item {
+    transition: background-color 0.2s;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+}
+
+.progress {
+    height: 1rem;
+    border-radius: 0.5rem;
+}
+
+.progress-bar {
+    background-color: #4e73df;
+}
+</style>
+{% endblock %}

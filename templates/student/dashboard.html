@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+            <div class="col-md-12">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                    <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+</div>
+
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start"> Dashboard</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="">
+                    <p class="fw-bold card-stitle text-start d-inline ms-2">Finance</p>
+                    <a class="fw-bold card-stitle text-end d-inline pull-right mx-2" href="#">View Statement</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row p-2">
+        <!--left-->
+        <div class="col-md-8">
+            <!--grand_one-->
+            <div class="row d-flex flex-column" id="welcomeMessage">
+                <div class="d-flex align-items-stretch">
+                    <div class="card shadow-sm p-2">
+                        <div class="row g-0">
+                            <div class="col-md-9">
+                                <div class="card-body">
+                                    <h3 class="card-title fw-bolder primary-text p-2">
+                                        Welcome back,<span class="card-stitle">
+                                            {{request.user.first_name }}                                    </span>
+                                    </h3>
+                                    <p class="card-text p-2">
+                                        We're delighted to have you. Need help on system walk through? Navigate to virtual assistant on the side menu                                </p>
+                                </div>
+                            </div>
+                            <div class="col-md-3 p-3 text-center">
+                                <img src="{% static 'user.svg'%}" class="img-fluid rounded-start" alt="..." style="height:65%">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!--header-->
+            <div class="row pt-2 mt-3">
+                <div class="col-md-9 text-start">
+                    <p class="card-stitle text-start fw-semibold  primary-text fs-5 ms-3">Current Registered Units</p>
+                </div>
+
+                <div class="col-md-3 text-end">
+                    <a class="card-stitle text-end small  primary-text fs-5 mx-3" href="#">View All</a>
+                </div>
+            </div>
+            <!--etc-->
+            <div class="row g-0 card bg-white shadow-sm" id="dashboardUnits">
+                <div class="mb-3 table-responsive">
+                    <table class="table border table-responsive">
+                        <thead class="thead">
+                            <tr>
+                                <th>Unit Name</th>
+                                <th>Unit Code</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for registration in registrations %}
+                                    <tr>
+                                        <td>{{ registration.unit.name }}</td>
+                                        <td>{{ registration.unitCode.code }}</td>
+                                        <td>{% if registration.approved %}Approved{% else %}Pending{% endif %}</td>
+                                    </tr>
+                            {% endfor %}       
+                                 
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!--right-->
+        <div class="col">
+            <div class="p-1" id="dashboardFees">
+                <div class="card p-1 text-bg-primary sy d-flex justify-content-center align-items-center">
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <div class="text-content-center">
+                                <i class="ri-coin-fill fa-4x"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card-body mt-3">
+                                <h5 class="card-title fw-bold">Fee Balance</h5>
+                                <input hidden type="checkbox" checked="checked" id="feebalanceStatus" />
+                                <p class="card-text" id="studBalance">
+                                    {% if current_semester_fee_balance > 0 %}
+                                           {{ current_semester_fee_balance|floatformat:2 }} KSH
+                                            {% elif current_semester_fee_balance < 0 %}
+                                                {{ current_semester_fee_balance|floatformat:2 }} KSH
+                                            {% else %}
+                                                0.00 KSH
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-1" id="dashboardProgress">
+                <div class="card sy p-1 d-flex justify-content-center align-items-center" style="background:#3639A4;color:#fff">
+                    <div class="row g-0 ">
+                        <div class="col-md-3 text-center">
+                            <div class="text-content-center">
+                                <i class="ri-file-mark-fill fa-4x"></i>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card-body">
+
+                                <span class="fw-bold" id="studProg"></span><br /><span class="small esubtitle">
+                                    BACHELOR OF SCIENCE IN COMPUTER TECHNOLOGY                            </span>
+                                <p class="fw-semibold">Current Session Progress</p>
+                                <div class="progress">
+                                    <div class="progress-bar" id="theprogressbar" role="progressbar" aria-label="Basic example" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-1 m-top " id="dashboardHostel">
+                <div class="col card shadow hh p-1 yhigh">
+                    <p class="fw-bold  primary-text fs-4 p-2 text-start">Hostel info</p>
+                    <div class="row ms-2 d-flex flex-row flex-sm-row">
+                        <div class="col-md-3">
+                            <span class=" primary-text"><i class="ri-hotel-line fa-4x"></i></span>
+                        </div>
+                        <div class="col-md-9">
+                            <div class="card-body">
+                                {% if hostel_booking %}
+                                <span class="fs-6" id="hostelName"> {{ hostel_booking.bed.room.hostel.name }}</span> <br />
+                                <span class="" id="hostelTerm"> {{ hostel_booking.bed.room.room_name }}</span><br />
+                                <span class="" id="hostelDate">{{ hostel_booking.bed.bed_name }}</span>
+                                {% else %}
+                                <span class="fs-6" id="hostelName"> House Name</span> <br />
+                                <span class="" id="hostelTerm"> Room No</span><br />
+                                <span class="" id="hostelDate">Bed No</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--Pay now modal-->
+    <div class="modal fade" id="PayNow_Modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <img src="/assets/images/Safaricom-Mpesa.jpg" width="100" />
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form method="post" action="/Financials/PayFeesGateway">
+                        <div class="form-group">
+                                <input hidden name="payAccount" />
+                            <div class="mb-2">
+                                <label class="fw-bold">Phone Number</label>
+                                <input type="text" class="form-control" name="phone" value="112284093" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="fw-bold">Amount</label>
+                                <input type="text" class="form-control" name="amount" min="1" id="payAMount" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-color btn-md light mt-2">Submit</button>
+                    <input name="__RequestVerificationToken" type="hidden" value="CfDJ8AjNkxAgz6tElXQYWS_mbdwUuRuIm_7HHSVJEMnkiW2vg2T6ATOKSBjj-SWJwtxm0BQIa1WaYRo2CZhVpAPHbaGnZF_oE1xstzeAqTNgb50ctL90Nsk2GO4qDDs3FK5ou8ATxbaQ1yXTyJsdtlYSPPi1FF0lmkezDoXym9LwVVu58MlI_kqlStkgl34xzB_-XQ" /></form>
+                </div>
+                <div class="modal-footer">
+                    <span>©2024 - Powered by <img src="/assets/images/lollapay.png" alt="Lollapay" /></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal HTML -->
+<div id="myModal" class="modal fade">
+    <div class="modal-dialog modal-confirm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header flex-column">
+                <div class="icon-box">
+                    <i class="material-icons">&#xE5CD;</i>
+                </div>
+                <h4 class="modal-title fw-bold text-dark">Are you sure?</h4>
+            </div>
+            <div class="modal-body text-dark ms-2 text-center">
+                <p class="text-dark px-4" style="width: 26rem;">Do you really want to delete these record? This process cannot be undone.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-lg btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-lg btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- UploadFile -->
+<div class="modal fade" id="UploadFile" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title primary-text" id="exampleModalLabel">Upload Files</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" enctype="multipart/form-data" action="/Repository/UploadFile">
+                    <div class="mb-3">
+                        <label for="exampleFormControlInput1" class="form-label small">Select Folder</label>
+                        <select class="form-select" required name="folder">
+                            <option value="">Select folder</option>
+                                <option value="4">ATTACHEMENT</option>
+                                <option value="5">STUDENT NOTICES</option>
+                                <option value="9">STUDENT FORMS</option>
+                                <option value="10">TVET ATTACHMENT FORMS</option>
+                                <option value="20">STUDENT  ELECTIONS 2023</option>
+                                <option value="22">ACCOMODATION</option>
+                                <option value="26">TEACHING TIMETABLES</option>
+                                <option value="27">PROGRAMMES ADVERTS</option>
+                                <option value="29">POSTGRADUATE FORMS</option>
+                                <option value="30">EXAMINATION TIMETABLES</option>
+                                <option value="33">COURSE TRANSFER</option>
+                                <option value="35">PAST EXAMINATION PAPERS</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="exampleFormControlInput1" class="form-label small">Choose File</label>
+                        <input type="file" class="form-control" name="file" id="exampleFormControlInput1" required>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-8"></div>
+                        <div class="col-md-4 d-flex justify-content-end">
+                            <button class="btn primary-btn ms-2 btn-lg" type="submit">Save</button>
+                        </div>
+                    </div>
+
+                <input name="__RequestVerificationToken" type="hidden" value="CfDJ8AjNkxAgz6tElXQYWS_mbdwUuRuIm_7HHSVJEMnkiW2vg2T6ATOKSBjj-SWJwtxm0BQIa1WaYRo2CZhVpAPHbaGnZF_oE1xstzeAqTNgb50ctL90Nsk2GO4qDDs3FK5ou8ATxbaQ1yXTyJsdtlYSPPi1FF0lmkezDoXym9LwVVu58MlI_kqlStkgl34xzB_-XQ" /></form>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add this JavaScript at the bottom of your existing template, before the closing body tag -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update progress bar for current semester
+    var currentSemesterProgress = {{ current_semester_progress|floatformat:0 }};
+    var progressBar = document.getElementById('theprogressbar');
+    var studProgElement = document.getElementById('studProg');
+    
+    if (progressBar) {
+        progressBar.style.width = currentSemesterProgress + '%';
+        progressBar.setAttribute('aria-valuenow', currentSemesterProgress);
+        progressBar.textContent = currentSemesterProgress + '%';
+    }
+    
+    if (studProgElement) {
+        studProgElement.textContent = 'Year {{ student.current_year }}, Semester {{ student.current_semester }}';
+    }
+    
+    // Update course name if needed
+    var courseElements = document.querySelectorAll('.esubtitle');
+    if (courseElements.length > 0) {
+        courseElements[0].textContent = '{{ student.course.name|upper }}';
+    }
+});
+</script>
+
+<!-- Optional: Add this CSS for better progress bar styling -->
+<style>
+.progress-bar {
+    background-color: #28a745;
+    transition: width 0.3s ease;
+}
+
+.progress {
+    height: 20px;
+    background-color: #e9ecef;
+    border-radius: 10px;
+}
+
+/* Style for the units table */
+#dashboardUnits .table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+#dashboardUnits .table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+}
+
+/* Status badges */
+.status-approved {
+    background-color: #28a745;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.85em;
+}
+
+.status-pending {
+    background-color: #ffc107;
+    color: #212529;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.85em;
+}
+</style>
+
+{% endblock %}

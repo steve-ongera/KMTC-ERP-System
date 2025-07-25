@@ -1,0 +1,444 @@
+{% extends 'base.html' %}
+{% load transcript_filters %}
+{% load static %}
+
+{% block title %}Academic Transcript - {{ student.user.get_full_name }}{% endblock %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Academic Transcript</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="btn-group float-end">
+                    <a href="{% url 'student_detail' student.student_id %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </a>
+                    <button class="btn btn-outline-primary" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                    <a href="#" class="btn btn-outline-info">
+                        <i class="bi bi-download"></i> Download
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Information Card -->
+    <div class="row p-3">
+        <div class="col-md-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-person-badge"></i> Student Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-2 text-center">
+                            {% if student.user.profile_picture %}
+                                <img src="{{ student.user.profile_picture.url }}" 
+                                     class="profile-picture img-thumbnail rounded-circle" 
+                                     alt="Profile Picture" width="120">
+                            {% else %}
+                                <div class="profile-picture-placeholder rounded-circle d-flex align-items-center justify-content-center mx-auto" style="width: 120px; height: 120px;">
+                                    <i class="bi bi-person-fill" style="font-size: 2.5rem;"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-10">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="small text-muted">Name</label>
+                                    <p class="fw-bold">{{ student.user.get_full_name }}</p>
+                                    <label class="small text-muted">Student ID</label>
+                                    <p class="fw-bold">{{ student.student_id }}</p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="small text-muted">Current Year/Semester</label>
+                                    <p class="fw-bold">{{ student.current_year }}/{{ student.current_semester }}</p>
+                                    <label class="small text-muted">Status</label>
+                                    <p class="fw-bold">
+                                        <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'graduated' %}info{% else %}warning{% endif %}">
+                                            {{ student.get_status_display }}
+                                        </span>
+                                    </p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="small text-muted">Course</label>
+                                    <p class="fw-bold">{{ student.course.name }}</p>
+                                    <label class="small text-muted">Department</label>
+                                    <p class="fw-bold">{{ student.course.department.name }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Summary Card -->
+    <div class="row p-3">
+        <div class="col-md-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-award"></i> Academic Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 mb-3">
+                            <div class="p-3 border rounded bg-light h-100">
+                                <h3 class="text-primary">{{ overall_gpa }}</h3>
+                                <p class="mb-0 text-muted">Overall GPA</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="p-3 border rounded bg-light h-100">
+                                <h3 class="text-primary">{{ total_credits }}</h3>
+                                <p class="mb-0 text-muted">Total Credits</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="p-3 border rounded bg-light h-100">
+                                <h3 class="text-primary">{{ completed_percentage }}%</h3>
+                                <p class="mb-0 text-muted">Program Completion</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="p-3 border rounded bg-light h-100">
+                                <h3 class="text-primary">{{ academic_standing }}</h3>
+                                <p class="mb-0 text-muted">Academic Standing</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transcript Data with Tabs -->
+    <div class="row p-3">
+        <div class="col-md-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-journal-text"></i> Detailed Transcript
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if transcript_data %}
+                    <!-- Year Tabs -->
+                    <ul class="nav nav-tabs" id="yearTabs" role="tablist">
+                        {% for year in transcript_data.keys %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                    id="year-{{ year|slugify }}-tab" 
+                                    data-bs-toggle="tab" 
+                                    data-bs-target="#year-{{ year|slugify }}" 
+                                    type="button" 
+                                    role="tab">
+                                <i class="bi bi-calendar2-range me-1"></i> {{ year }}
+                            </button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+
+                    <!-- Year Tab Content -->
+                    <div class="tab-content mt-3" id="yearTabsContent">
+                        {% for year, semesters in transcript_data.items %}
+                        <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                             id="year-{{ year|slugify }}" 
+                             role="tabpanel">
+                            
+                            <!-- Semester Tabs for this year -->
+                            <ul class="nav nav-pills mb-3" id="semester-{{ year|slugify }}-tabs" role="tablist">
+                                {% for semester_num in semesters.keys %}
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                            id="semester-{{ year|slugify }}-{{ semester_num }}-tab" 
+                                            data-bs-toggle="pill" 
+                                            data-bs-target="#semester-{{ year|slugify }}-{{ semester_num }}" 
+                                            type="button" 
+                                            role="tab">
+                                        <i class="bi bi-collection me-1"></i> Semester {{ semester_num }}
+                                        {% if semester_gpas|dict_key:year|add:"-"|add:semester_num %}
+                                            <span class="badge bg-primary ms-1">GPA: {{ semester_gpas|dict_key:year|add:"-"|add:semester_num|dict_key:"gpa" }}</span>
+                                        {% endif %}
+                                    </button>
+                                </li>
+                                {% endfor %}
+                            </ul>
+
+                            <!-- Semester Tab Content -->
+                            <div class="tab-content" id="semester-{{ year|slugify }}-content">
+                                {% for semester_num, subjects in semesters.items %}
+                                <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                                     id="semester-{{ year|slugify }}-{{ semester_num }}" 
+                                     role="tabpanel">
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-8">
+                                            <h5>{{ year }} - Semester {{ semester_num }}</h5>
+                                        </div>
+                                        <div class="col-md-4 text-end">
+                                            {% with semester_key=year|add:"-"|add:semester_num %}
+                                            {% if semester_gpas|dict_key:semester_key %}
+                                            <p class="mb-0"><strong>Semester GPA:</strong> <span class="badge bg-primary">{{ semester_gpas|dict_key:semester_key|dict_key:"gpa" }}</span></p>
+                                            <p class="mb-0"><strong>Credits Earned:</strong> <span class="badge bg-info">{{ semester_gpas|dict_key:semester_key|dict_key:"credits" }}</span></p>
+                                            {% endif %}
+                                            {% endwith %}
+                                        </div>
+                                    </div>
+
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-hover">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Code</th>
+                                                    <th>Subject</th>
+                                                    <th>Credits</th>
+                                                    <th>Theory</th>
+                                                    <th>Practical</th>
+                                                    <th>Total</th>
+                                                    <th>Grade</th>
+                                                    <th>Points</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for subject_data in subjects %}
+                                                <tr {% if subject_data.status == 'Failed' %}class="table-danger"{% elif subject_data.status == 'Passed' %}class="table-success"{% endif %}>
+                                                    <td>{{ subject_data.subject.code }}</td>
+                                                    <td>{{ subject_data.subject.name }}</td>
+                                                    <td>{{ subject_data.subject.credits }}</td>
+                                                    <td>{{ subject_data.theory_marks|default:"-" }}</td>
+                                                    <td>{{ subject_data.practical_marks|default:"-" }}</td>
+                                                    <td>{{ subject_data.total_marks|default:"-" }}</td>
+                                                    <td>
+                                                        <span class="badge {% if subject_data.grade_letter == 'F' %}bg-danger{% elif subject_data.grade_letter == 'D' %}bg-warning text-dark{% elif subject_data.grade_letter|slice:':1' == 'A' %}bg-success{% else %}bg-primary{% endif %}">
+                                                            {{ subject_data.grade_letter }}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ subject_data.grade_points|default:"-" }}</td>
+                                                    <td>
+                                                        <span class="badge {% if subject_data.status == 'Passed' %}bg-success{% elif subject_data.status == 'Failed' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                                            {{ subject_data.status }}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info" role="alert">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-info-circle-fill me-2" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <h4 class="alert-heading">No Academic Records Found</h4>
+                                <p class="mb-0">No transcript data is available for this student. Please contact the academic office if you believe this is an error.</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Activate the first tab if none is active
+    if (window.location.hash) {
+        const tabTrigger = new bootstrap.Tab(document.querySelector(`[data-bs-target="${window.location.hash}"]`));
+        tabTrigger.show();
+    }
+    
+    // Update URL hash when tabs are shown
+    document.querySelectorAll('#yearTabs button[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function (event) {
+            window.location.hash = event.target.getAttribute('data-bs-target');
+        });
+    });
+    
+    // Initialize print functionality
+    document.querySelector('.btn-print').addEventListener('click', function() {
+        window.print();
+    });
+});
+</script>
+
+<style>
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.card {
+    border: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+    padding: 1rem 1.25rem;
+}
+
+.card-title {
+    font-size: 1.1rem;
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #3639A4;
+}
+
+.profile-picture {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border: 4px solid #f0f0f0;
+}
+
+.profile-picture-placeholder {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border: 4px solid #f0f0f0;
+}
+
+.nav-tabs .nav-link {
+    font-weight: 500;
+    border: none;
+    padding: 0.75rem 1.25rem;
+    color: #495057;
+}
+
+.nav-tabs .nav-link.active {
+    color: #fff;
+    background-color: #3639A4;
+    border-bottom: 3px solid #3639A4;
+}
+
+.nav-tabs .nav-link:hover:not(.active) {
+    color: #3639A4;
+    border-bottom: 3px solid #dee2e6;
+}
+
+.nav-pills .nav-link {
+    font-weight: 500;
+    color: #495057;
+    margin-right: 0.5rem;
+}
+
+.nav-pills .nav-link.active {
+    background-color: #6c757d;
+    color: white;
+}
+
+.table th {
+    white-space: nowrap;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: #6c757d;
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.badge {
+    font-weight: 500;
+    padding: 5px 10px;
+}
+
+.table-responsive {
+    max-height: 500px;
+    overflow-y: auto;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+@media (max-width: 768px) {
+    .profile-picture, .profile-picture-placeholder {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .dashboardRightLabel .btn-group {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .dashboardRightLabel .btn {
+        margin-bottom: 5px;
+        flex-grow: 1;
+    }
+    
+    .table-responsive {
+        font-size: 0.85rem;
+    }
+}
+
+@media print {
+    .onprintContainer {
+        box-shadow: none;
+    }
+    
+    .card {
+        box-shadow: none;
+        border: 1px solid #dee2e6;
+    }
+    
+    .nav-tabs, .nav-pills, .dashboardRightLabel {
+        display: none !important;
+    }
+    
+    .tab-content > .tab-pane {
+        display: block !important;
+        opacity: 1 !important;
+    }
+    
+    .table-responsive {
+        max-height: none;
+        overflow: visible;
+    }
+}
+</style>
+
+{% endblock %}

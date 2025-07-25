@@ -1,0 +1,105 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}Delete Faculty - {{ faculty.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Delete Faculty - {{ faculty.user.get_full_name }}</h2>
+                <a href="{% url 'faculty_list' %}" class="btn btn-secondary">Back to List</a>
+            </div>
+            
+            <div class="alert alert-danger">
+                <h4>Are you sure you want to delete this faculty member?</h4>
+                <p>This action will deactivate the faculty member and their user account. This action cannot be undone.</p>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Faculty Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Employee ID:</strong></td>
+                                    <td>{{ faculty.employee_id }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Full Name:</strong></td>
+                                    <td>{{ faculty.user.get_full_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Email:</strong></td>
+                                    <td>{{ faculty.user.email }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Department:</strong></td>
+                                    <td>{{ faculty.department.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Designation:</strong></td>
+                                    <td>{{ faculty.get_designation_display }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Joining Date:</strong></td>
+                                    <td>{{ faculty.joining_date }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Impact Assessment</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if active_schedules > 0 %}
+                                <div class="alert alert-warning">
+                                    <strong>Warning:</strong> This faculty member has {{ active_schedules }} active schedule(s). 
+                                    Deleting this faculty will affect the current timetable.
+                                </div>
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <strong>Info:</strong> This faculty member has no active schedules. 
+                                    Deletion will not affect the current timetable.
+                                </div>
+                            {% endif %}
+                            
+                            <p><strong>What will happen:</strong></p>
+                            <ul>
+                                <li>Faculty profile will be deactivated</li>
+                                <li>User account will be deactivated</li>
+                                <li>Login access will be revoked</li>
+                                <li>Historical data will be preserved</li>
+                                {% if active_schedules > 0 %}
+                                    <li>Active schedules will need to be reassigned</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-12">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            Yes, Delete Faculty
+                        </button>
+                        <a href="{% url 'faculty_detail' faculty.employee_id %}" class="btn btn-secondary">
+                            Cancel
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

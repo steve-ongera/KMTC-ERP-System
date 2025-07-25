@@ -1,0 +1,403 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">{{ action }} Student</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <a href="{% url 'student_list' %}" class="btn btn-outline-secondary float-end">
+                    <i class="bi bi-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-md-12">
+            <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <!-- Personal Information Card -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-person-vcard"></i> Personal Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="{{ user_form.username.id_for_label }}" class="form-label">Username</label>
+                                {{ user_form.username }}
+                                <div class="invalid-feedback">
+                                    {{ user_form.username.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ user_form.email.id_for_label }}" class="form-label">Email</label>
+                                {{ user_form.email }}
+                                <div class="invalid-feedback">
+                                    {{ user_form.email.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ user_form.first_name.id_for_label }}" class="form-label">First Name</label>
+                                {{ user_form.first_name }}
+                                <div class="invalid-feedback">
+                                    {{ user_form.first_name.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ user_form.last_name.id_for_label }}" class="form-label">Last Name</label>
+                                {{ user_form.last_name }}
+                                <div class="invalid-feedback">
+                                    {{ user_form.last_name.errors|first }}
+                                </div>
+                            </div>
+                            
+                            {% if action == 'Create' %}
+                            <div class="col-md-6">
+                                <label for="{{ user_form.password.id_for_label }}" class="form-label">Password</label>
+                                {{ user_form.password }}
+                                <div class="invalid-feedback">
+                                    {{ user_form.password.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ user_form.confirm_password.id_for_label }}" class="form-label">Confirm Password</label>
+                                {{ user_form.confirm_password }}
+                                <div class="invalid-feedback">
+                                    {{ user_form.confirm_password.errors|first }}
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="col-md-6">
+                                <label for="{{ user_form.phone.id_for_label }}" class="form-label">Phone</label>
+                                {{ user_form.phone }}
+                                <div class="invalid-feedback">
+                                    {{ user_form.phone.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ user_form.gender.id_for_label }}" class="form-label">Gender</label>
+                                {{ user_form.gender }}
+                                <div class="invalid-feedback">
+                                    {{ user_form.gender.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ user_form.date_of_birth.id_for_label }}" class="form-label">Date of Birth</label>
+                                {{ user_form.date_of_birth }}
+                                <div class="invalid-feedback">
+                                    {{ user_form.date_of_birth.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ user_form.profile_picture.id_for_label }}" class="form-label">Profile Picture</label>
+                                {{ user_form.profile_picture }}
+                                <div class="invalid-feedback">
+                                    {{ user_form.profile_picture.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <label for="{{ user_form.address.id_for_label }}" class="form-label">Address</label>
+                                {{ user_form.address }}
+                                <div class="invalid-feedback">
+                                    {{ user_form.address.errors|first }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Academic Information Card -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-book"></i> Academic Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="{{ student_form.student_id.id_for_label }}" class="form-label">Student ID</label>
+                                {{ student_form.student_id }}
+                                <div class="invalid-feedback">
+                                    {{ student_form.student_id.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ student_form.course.id_for_label }}" class="form-label">Course</label>
+                                {{ student_form.course }}
+                                <div class="invalid-feedback">
+                                    {{ student_form.course.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="{{ student_form.current_year.id_for_label }}" class="form-label">Current Year</label>
+                                {{ student_form.current_year }}
+                                <div class="invalid-feedback">
+                                    {{ student_form.current_year.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="{{ student_form.current_semester.id_for_label }}" class="form-label">Current Semester</label>
+                                {{ student_form.current_semester }}
+                                <div class="invalid-feedback">
+                                    {{ student_form.current_semester.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="{{ student_form.admission_date.id_for_label }}" class="form-label">Admission Date</label>
+                                {{ student_form.admission_date }}
+                                <div class="invalid-feedback">
+                                    {{ student_form.admission_date.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ student_form.admission_type.id_for_label }}" class="form-label">Admission Type</label>
+                                {{ student_form.admission_type }}
+                                <div class="invalid-feedback">
+                                    {{ student_form.admission_type.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ student_form.status.id_for_label }}" class="form-label">Status</label>
+                                {{ student_form.status }}
+                                <div class="invalid-feedback">
+                                    {{ student_form.status.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ student_form.blood_group.id_for_label }}" class="form-label">Blood Group</label>
+                                {{ student_form.blood_group }}
+                                <div class="invalid-feedback">
+                                    {{ student_form.blood_group.errors|first }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Guardian Information Card -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-people"></i> Guardian Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="{{ student_form.guardian_name.id_for_label }}" class="form-label">Guardian Name</label>
+                                {{ student_form.guardian_name }}
+                                <div class="invalid-feedback">
+                                    {{ student_form.guardian_name.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ student_form.guardian_phone.id_for_label }}" class="form-label">Guardian Phone</label>
+                                {{ student_form.guardian_phone }}
+                                <div class="invalid-feedback">
+                                    {{ student_form.guardian_phone.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ student_form.guardian_relation.id_for_label }}" class="form-label">Guardian Relation</label>
+                                {{ student_form.guardian_relation }}
+                                <div class="invalid-feedback">
+                                    {{ student_form.guardian_relation.errors|first }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ student_form.emergency_contact.id_for_label }}" class="form-label">Emergency Contact</label>
+                                {{ student_form.emergency_contact }}
+                                <div class="invalid-feedback">
+                                    {{ student_form.emergency_contact.errors|first }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Form Errors -->
+                {% if user_form.non_field_errors or student_form.non_field_errors %}
+                <div class="alert alert-danger mb-4">
+                    <ul class="mb-0">
+                        {% if user_form.non_field_errors %}
+                            {% for error in user_form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        {% endif %}
+                        {% if student_form.non_field_errors %}
+                            {% for error in student_form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <!-- Form Actions -->
+                <div class="text-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="bi bi-save"></i> {{ action }} Student
+                    </button>
+                    <a href="{% url 'student_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Bootstrap form validation
+document.addEventListener('DOMContentLoaded', function() {
+    // Fetch all the forms we want to apply custom Bootstrap validation styles to
+    const forms = document.querySelectorAll('.needs-validation')
+    
+    // Loop over them and prevent submission
+    Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!form.checkValidity()) {
+                event.preventDefault()
+                event.stopPropagation()
+            }
+            
+            form.classList.add('was-validated')
+        }, false)
+    })
+    
+    // Initialize date pickers if using flatpickr
+    if (typeof flatpickr !== "undefined") {
+        flatpickr("[data-date]", {
+            dateFormat: "Y-m-d",
+            allowInput: true
+        });
+    }
+    
+    // Preview profile picture
+    const profilePictureInput = document.getElementById('{{ user_form.profile_picture.id_for_label }}');
+    if (profilePictureInput) {
+        profilePictureInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('profilePicturePreview');
+                    if (preview) {
+                        preview.src = e.target.result;
+                        preview.style.display = 'block';
+                    }
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+});
+</script>
+
+<style>
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #3639A4;
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.form-control, .form-select {
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #3639A4;
+    box-shadow: 0 0 0 0.25rem rgba(54, 57, 164, 0.25);
+}
+
+.invalid-feedback {
+    display: none;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875em;
+    color: #dc3545;
+}
+
+.was-validated .form-control:invalid,
+.was-validated .form-select:invalid,
+.form-control.is-invalid,
+.form-select.is-invalid {
+    border-color: #dc3545;
+    padding-right: calc(1.5em + 0.75rem);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+.was-validated .form-control:invalid ~ .invalid-feedback,
+.was-validated .form-select:invalid ~ .invalid-feedback,
+.form-control.is-invalid ~ .invalid-feedback,
+.form-select.is-invalid ~ .invalid-feedback {
+    display: block;
+}
+
+#profilePicturePreview {
+    max-width: 150px;
+    max-height: 150px;
+    border-radius: 50%;
+    margin-top: 10px;
+    display: none;
+}
+</style>
+
+{% endblock %}
