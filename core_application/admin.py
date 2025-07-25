@@ -161,6 +161,34 @@ class GradeAdmin(admin.ModelAdmin):
     search_fields = ('enrollment__student__registration_number', 'enrollment__unit__code')
     readonly_fields = ('total_marks', 'grade', 'grade_points', 'is_passed')
 
+from django.contrib import admin
+from .models import StudentReporting
+
+@admin.register(StudentReporting)
+class StudentReportingAdmin(admin.ModelAdmin):
+    list_display = (
+        'student',
+        'semester',
+        'reporting_type',
+        'reporting_date',
+        'status',
+        'processed_by',
+        'processed_date',
+    )
+    list_filter = ('status', 'reporting_type', 'semester')
+    search_fields = ('student__registration_number', 'student__full_name')
+    readonly_fields = ('reporting_date',)
+
+    # Optional: group fields in the admin form
+    fieldsets = (
+        (None, {
+            'fields': ('student', 'semester', 'reporting_type', 'status')
+        }),
+        ('Reporting Info', {
+            'fields': ('remarks', 'processed_by', 'processed_date', 'reporting_date')
+        }),
+    )
+
 # Fee Management Admins
 @admin.register(FeeStructure)
 class FeeStructureAdmin(admin.ModelAdmin):
