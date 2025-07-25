@@ -266,7 +266,7 @@ class Staff(models.Model):
 
 # Academic Records Models
 class AcademicYear(models.Model):
-    year = models.CharField(max_length=10, unique=True)  # e.g., "2024-25"
+    year = models.CharField(max_length=10, unique=True)  # e.g., "2024/2025"
     start_date = models.DateField()
     end_date = models.DateField()
     is_current = models.BooleanField(default=False)
