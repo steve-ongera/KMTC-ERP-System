@@ -111,12 +111,10 @@
                                 <div class="card-body">
                                     <h3 class="card-title fw-bolder primary-text p-2">
                                         Welcome back,<span class="card-stitle">
-                                            {{ student.user.get_full_name }}
-                                        </span>
+                                            {{request.user.first_name }}                                    </span>
                                     </h3>
                                     <p class="card-text p-2">
-                                        Registration Number: {{ student.registration_number }}
-                                    </p>
+                                        We're delighted to have you. Need help on system walk through? Navigate to virtual assistant on the side menu                                </p>
                                 </div>
                             </div>
                             <div class="col-md-3 p-3 text-center">
@@ -210,8 +208,8 @@
                             <div class="card-body">
                                 <span class="fw-bold" id="studProg">Year {{ student.current_year }}, Semester {{ student.current_semester }}</span><br />
                                 <span class="small esubtitle">{{ student.programme.name|upper }}</span>
-                                <p class="fw-semibold">Programme Completion</p>
-                                <div class="progress">
+                              
+                                <div class="progress" style="font-size: 10px;">
                                     <div class="progress-bar" id="theprogressbar" role="progressbar" aria-label="Basic example" 
                                          style="width: {{ progress_percentage }}%" 
                                          aria-valuenow="{{ progress_percentage }}" 
@@ -220,7 +218,7 @@
                                         {{ progress_percentage }}%
                                     </div>
                                 </div>
-                                <small>Semester {{ completed_semesters }} of {{ total_semesters }}</small>
+                               
                             </div>
                         </div>
                     </div>
