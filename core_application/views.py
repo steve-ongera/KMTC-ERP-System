@@ -57,7 +57,6 @@ def student_dashboard(request):
     
     return render(request, 'student/dashboard.html', context)
 
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -75,7 +74,7 @@ from .models import (
 @login_required
 def student_units_view(request):
     """
-    View for student unit enrollment, history, and curriculum display
+    Simplified view for student unit enrollment, history, and curriculum display
     """
     # Get student profile
     try:
@@ -97,7 +96,7 @@ def student_units_view(request):
             current_semester.registration_start_date <= today <= current_semester.registration_end_date
         )
     
-    # Get available units for current year and semester
+    # Get available units for registration
     available_units = []
     if show_registration and current_semester:
         # Get programme units for student's current year and semester
@@ -121,28 +120,10 @@ def student_units_view(request):
             unit_id__in=enrolled_unit_ids
         )
         
-        # Check prerequisites for each unit
         for programme_unit in available_programme_units:
-            unit = programme_unit.unit
-            can_enroll = True
-            
-            # Check if student has completed prerequisites
-            if unit.prerequisites.exists():
-                prerequisite_ids = unit.prerequisites.values_list('id', flat=True)
-                completed_prerequisites = Enrollment.objects.filter(
-                    student=student,
-                    unit_id__in=prerequisite_ids,
-                    is_active=True
-                ).values_list('unit_id', flat=True)
-                
-                if set(prerequisite_ids) != set(completed_prerequisites):
-                    can_enroll = False
-            
-            if can_enroll:
-                available_units.append(unit)
+            available_units.append(programme_unit.unit)
     
-    # Get enrollment history grouped by year and semester
-    enrollment_groups = defaultdict(lambda: defaultdict(list))
+    # Get enrollment history
     enrollments = Enrollment.objects.select_related(
         'unit', 'semester', 'semester__academic_year'
     ).filter(
@@ -150,20 +131,21 @@ def student_units_view(request):
         is_active=True
     ).order_by('-semester__academic_year__year', '-semester__semester_number')
     
+    # Group enrollments by academic year and semester
+    enrollment_history = {}
     for enrollment in enrollments:
-        # Determine year and semester from programme structure
-        programme_unit = ProgrammeUnit.objects.filter(
-            programme=student.programme,
-            unit=enrollment.unit
-        ).first()
+        year_key = f"Year {enrollment.semester.academic_year.year}"
+        sem_key = f"Semester {enrollment.semester.semester_number}"
         
-        if programme_unit:
-            year = programme_unit.year
-            semester = programme_unit.semester
-            enrollment_groups[year][semester].append(enrollment)
+        if year_key not in enrollment_history:
+            enrollment_history[year_key] = {}
+        if sem_key not in enrollment_history[year_key]:
+            enrollment_history[year_key][sem_key] = []
+            
+        enrollment_history[year_key][sem_key].append(enrollment)
     
-    # Get full curriculum for the programme
-    curriculum = defaultdict(lambda: defaultdict(list))
+    # Get complete curriculum
+    curriculum_data = {}
     programme_units = ProgrammeUnit.objects.select_related('unit').filter(
         programme=student.programme,
         is_active=True,
@@ -171,7 +153,15 @@ def student_units_view(request):
     ).order_by('year', 'semester', 'unit__name')
     
     for programme_unit in programme_units:
-        curriculum[programme_unit.year][programme_unit.semester].append(programme_unit.unit)
+        year_key = f"Year {programme_unit.year}"
+        sem_key = f"Semester {programme_unit.semester}"
+        
+        if year_key not in curriculum_data:
+            curriculum_data[year_key] = {}
+        if sem_key not in curriculum_data[year_key]:
+            curriculum_data[year_key][sem_key] = []
+            
+        curriculum_data[year_key][sem_key].append(programme_unit.unit)
     
     # Handle POST request for unit enrollment
     if request.method == 'POST':
@@ -181,9 +171,9 @@ def student_units_view(request):
         'student': student,
         'current_semester': current_semester,
         'show_registration': show_registration,
-        'available_subjects': available_units,  # Using 'subjects' to match template
-        'enrollment_groups': dict(enrollment_groups),
-        'curriculum': dict(curriculum),
+        'available_units': available_units,
+        'enrollment_history': enrollment_history,
+        'curriculum_data': curriculum_data,
     }
     
     return render(request, 'student/units.html', context)
@@ -205,8 +195,7 @@ def handle_unit_enrollment(request, student, current_semester, available_units):
         messages.error(request, "Unit registration is closed.")
         return redirect('student_units')
     
-    
-    selected_unit_ids = request.POST.getlist('subjects')  # Using 'subjects' to match template
+    selected_unit_ids = request.POST.getlist('units')
     
     if not selected_unit_ids:
         messages.error(request, "Please select at least one unit to register.")
@@ -227,19 +216,6 @@ def handle_unit_enrollment(request, student, current_semester, available_units):
     for unit_id in selected_unit_ids:
         try:
             unit = Unit.objects.get(id=unit_id, is_active=True)
-            
-            # Double-check prerequisites
-            if unit.prerequisites.exists():
-                prerequisite_ids = unit.prerequisites.values_list('id', flat=True)
-                completed_prerequisites = Enrollment.objects.filter(
-                    student=student,
-                    unit_id__in=prerequisite_ids,
-                    is_active=True
-                ).count()
-                
-                if completed_prerequisites != len(prerequisite_ids):
-                    errors.append(f"Prerequisites not met for {unit.name}")
-                    continue
             
             # Check if already enrolled
             existing_enrollment = Enrollment.objects.filter(
@@ -283,77 +259,3 @@ def handle_unit_enrollment(request, student, current_semester, available_units):
             messages.error(request, error)
     
     return redirect('student_units')
-
-@login_required
-def get_available_units_ajax(request):
-    """
-    AJAX endpoint to get available units for a specific year and semester
-    """
-    if request.method != 'GET':
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
-    
-    try:
-        student = Student.objects.get(user=request.user)
-    except Student.DoesNotExist:
-        return JsonResponse({'error': 'Student profile not found'}, status=404)
-    
-    year = request.GET.get('year')
-    semester = request.GET.get('semester')
-    
-    if not year or not semester:
-        return JsonResponse({'error': 'Year and semester are required'}, status=400)
-    
-    try:
-        year = int(year)
-        semester = int(semester)
-    except ValueError:
-        return JsonResponse({'error': 'Invalid year or semester format'}, status=400)
-    
-    # Get programme units for specified year and semester
-    programme_units = ProgrammeUnit.objects.select_related('unit').filter(
-        programme=student.programme,
-        year=year,
-        semester=semester,
-        is_active=True,
-        unit__is_active=True
-    )
-    
-    # Get current semester for enrollment check
-    current_semester = Semester.objects.filter(is_current=True).first()
-    enrolled_unit_ids = []
-    
-    if current_semester:
-        enrolled_unit_ids = Enrollment.objects.filter(
-            student=student,
-            semester=current_semester,
-            is_active=True
-        ).values_list('unit_id', flat=True)
-    
-    units_data = []
-    for programme_unit in programme_units:
-        unit = programme_unit.unit
-        
-        # Check prerequisites
-        prerequisites = []
-        if unit.prerequisites.exists():
-            prerequisites = [
-                {'code': prereq.code, 'name': prereq.name}
-                for prereq in unit.prerequisites.all()
-            ]
-        
-        units_data.append({
-            'id': unit.id,
-            'code': unit.code,
-            'name': unit.name,
-            'unit_type': unit.get_unit_type_display(),
-            'credit_hours': unit.credit_hours,
-            'is_enrolled': unit.id in enrolled_unit_ids,
-            'prerequisites': prerequisites,
-        })
-    
-    return JsonResponse({
-        'units': units_data,
-        'year': year,
-        'semester': semester
-    })
-

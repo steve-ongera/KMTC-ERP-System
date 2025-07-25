@@ -66,19 +66,13 @@
                                 <div class="card-body">
                                     <div class="row">
                                         <div class="col-md-6">
-                                            <p class="card-text"><strong>Programme:</strong> {{ student.programme.name }}</p>
+                                            <p class="card-text"><strong>Name:</strong> {{ student.user.get_full_name }}</p>
                                             <p class="card-text"><strong>Registration Number:</strong> {{ student.registration_number }}</p>
-                                            <p class="card-text"><strong>Current Year:</strong> {{ student.current_year }}</p>
-                                            <p class="card-text"><strong>Current Semester:</strong> {{ student.current_semester }}</p>
+                                            <p class="card-text"><strong>Programme:</strong> {{ student.programme.name }}</p>
                                         </div>
                                         <div class="col-md-6">
-                                            <p class="card-text"><strong>Academic Session:</strong> 
-                                                {% if current_semester %}
-                                                    {{ current_semester.academic_year.year }} - Semester {{ current_semester.semester_number }}
-                                                {% else %}
-                                                    No active semester
-                                                {% endif %}
-                                            </p>
+                                            <p class="card-text"><strong>Current Year:</strong> {{ student.current_year }}</p>
+                                            <p class="card-text"><strong>Current Semester:</strong> {{ student.current_semester }}</p>
                                             <p class="card-text"><strong>Registration Status:</strong>
                                                 {% if show_registration %}
                                                     <span class="badge bg-success">Open</span>
@@ -86,12 +80,6 @@
                                                     <span class="badge bg-danger">Closed</span>
                                                 {% endif %}
                                             </p>
-                                            {% if current_semester %}
-                                            <p class="card-text"><strong>Registration Period:</strong> 
-                                                {{ current_semester.registration_start_date|date:"M d, Y" }} - 
-                                                {{ current_semester.registration_end_date|date:"M d, Y" }}
-                                            </p>
-                                            {% endif %}
                                         </div>
                                     </div>
                                 </div>
@@ -99,7 +87,7 @@
                         </div>
                     </div>
                     
-                    {% if show_registration and available_subjects %}
+                    {% if show_registration and available_units %}
                     <form method="post" action="{% url 'student_units' %}" id="mySubmitForm">
                         {% csrf_token %}
                         <div class="accordion accordion-flush" id="accordionFlushExample">
@@ -110,7 +98,7 @@
                                         aria-expanded="true" aria-controls="flush-collapse-current">
                                         <i class="bi bi-book me-2"></i>
                                         Year {{ student.current_year }} - Semester {{ student.current_semester }} Available Units
-                                        <span class="badge bg-primary ms-2">{{ available_subjects|length }} unit{{ available_subjects|length|pluralize }}</span>
+                                        <span class="badge bg-primary ms-2">{{ available_units|length }} unit{{ available_units|length|pluralize }}</span>
                                     </button>
                                 </h2>
                                 <div id="flush-collapse-current" class="accordion-collapse collapse show" 
@@ -146,34 +134,34 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {% for subject in available_subjects %}
+                                                        {% for unit in available_units %}
                                                         <tr>
                                                             <td>
                                                                 <div class="form-check">
                                                                     <input class="form-check-input unit-checkbox" type="checkbox" 
-                                                                        id="subject_{{ subject.id }}" name="subjects" 
-                                                                        value="{{ subject.id }}">
-                                                                    <label class="form-check-label" for="subject_{{ subject.id }}"></label>
+                                                                        id="unit_{{ unit.id }}" name="units" 
+                                                                        value="{{ unit.id }}">
+                                                                    <label class="form-check-label" for="unit_{{ unit.id }}"></label>
                                                                 </div>
                                                             </td>
                                                             <td>
-                                                                <strong>{{ subject.code }}</strong>
+                                                                <strong>{{ unit.code }}</strong>
                                                             </td>
                                                             <td>
-                                                                {{ subject.name }}
-                                                                {% if subject.description %}
-                                                                <br><small class="text-muted">{{ subject.description|truncatewords:15 }}</small>
+                                                                {{ unit.name }}
+                                                                {% if unit.description %}
+                                                                <br><small class="text-muted">{{ unit.description|truncatewords:15 }}</small>
                                                                 {% endif %}
                                                             </td>
                                                             <td>
-                                                                <span class="badge bg-info">{{ subject.get_unit_type_display }}</span>
+                                                                <span class="badge bg-info">{{ unit.get_unit_type_display }}</span>
                                                             </td>
                                                             <td>
-                                                                <span class="badge bg-secondary">{{ subject.credit_hours }}</span>
+                                                                <span class="badge bg-secondary">{{ unit.credit_hours }}</span>
                                                             </td>
                                                             <td>
-                                                                {% if subject.prerequisites.exists %}
-                                                                    {% for prereq in subject.prerequisites.all %}
+                                                                {% if unit.prerequisites.exists %}
+                                                                    {% for prereq in unit.prerequisites.all %}
                                                                         <small class="badge bg-warning text-dark">{{ prereq.code }}</small>
                                                                         {% if not forloop.last %}<br>{% endif %}
                                                                     {% endfor %}
@@ -228,14 +216,14 @@
                         <p class="text-muted">View your complete unit enrollment history organized by academic year and semester.</p>
                     </div>
                     
-                    {% if enrollment_groups %}
-                        {% for year, semesters in enrollment_groups.items %}
-                        <div class="accordion accordion-flush mb-4" id="unitReg1-YEAR-{{ year }}">
+                    {% if enrollment_history %}
+                        {% for year, semesters in enrollment_history.items %}
+                        <div class="accordion accordion-flush mb-4" id="unitReg1-YEAR-{{ year|slugify }}">
                             <div class="accordion-item">
-                                <h2 class="accordion-header" id="year{{ year }}-unit-reg-heading">
+                                <h2 class="accordion-header" id="year{{ year|slugify }}-unit-reg-heading">
                                     <button class="accordion-button collapsed" type="button" 
-                                        data-bs-toggle="collapse" data-bs-target="#year{{ year }}-unit-reg" 
-                                        aria-expanded="false" aria-controls="year{{ year }}-unit-reg">
+                                        data-bs-toggle="collapse" data-bs-target="#year{{ year|slugify }}-unit-reg" 
+                                        aria-expanded="false" aria-controls="year{{ year|slugify }}-unit-reg">
                                         <i class="bi bi-calendar-event me-2"></i>
                                         YEAR {{ year }}
                                         <span class="badge bg-primary ms-2">
@@ -243,29 +231,29 @@
                                         </span>
                                     </button>
                                 </h2>
-                                <div id="year{{ year }}-unit-reg" class="accordion-collapse collapse" 
-                                    aria-labelledby="year{{ year }}-unit-reg-heading" 
-                                    data-bs-parent="#unitReg1-YEAR-{{ year }}">
+                                <div id="year{{ year|slugify }}-unit-reg" class="accordion-collapse collapse" 
+                                    aria-labelledby="year{{ year|slugify }}-unit-reg-heading" 
+                                    data-bs-parent="#unitReg1-YEAR-{{ year|slugify }}">
                                     <div class="accordion-body">
-                                        <div class="accordion accordion-flush" id="year{{ year }}unitReg">
+                                        <div class="accordion accordion-flush" id="year{{ year|slugify }}unitReg">
                                             {% for semester, enrollments in semesters.items %}
                                             <div class="accordion-item">
                                                 <h2 class="accordion-header" 
-                                                    id="sem{{ semester }}-unit-reg-year{{ year }}-heading">
+                                                    id="sem{{ semester|slugify }}-unit-reg-year{{ year|slugify }}-heading">
                                                     <button class="accordion-button collapsed" type="button" 
                                                         data-bs-toggle="collapse" 
-                                                        data-bs-target="#sem{{ semester }}-unit-reg-year{{ year }}" 
+                                                        data-bs-target="#sem{{ semester|slugify }}-unit-reg-year{{ year|slugify }}" 
                                                         aria-expanded="false" 
-                                                        aria-controls="sem{{ semester }}-unit-reg-year{{ year }}">
+                                                        aria-controls="sem{{ semester|slugify }}-unit-reg-year{{ year|slugify }}">
                                                         <i class="bi bi-bookmark me-2"></i>
                                                         SEMESTER {{ semester }}
                                                         <span class="badge bg-success ms-2">{{ enrollments|length }} units</span>
                                                     </button>
                                                 </h2>
-                                                <div id="sem{{ semester }}-unit-reg-year{{ year }}" 
+                                                <div id="sem{{ semester|slugify }}-unit-reg-year{{ year|slugify }}" 
                                                     class="accordion-collapse collapse" 
-                                                    aria-labelledby="sem{{ semester }}-unit-reg-year{{ year }}-heading" 
-                                                    data-bs-parent="#year{{ year }}unitReg">
+                                                    aria-labelledby="sem{{ semester|slugify }}-unit-reg-year{{ year|slugify }}-heading" 
+                                                    data-bs-parent="#year{{ year|slugify }}unitReg">
                                                     <div class="accordion-body">
                                                         <div class="row">
                                                             <div class="col-md-12 table-responsive">
@@ -336,44 +324,44 @@
                         <p class="text-muted">Complete curriculum structure for {{ student.programme.name }} programme.</p>
                     </div>
                     
-                    {% if curriculum %}
-                        {% for year, semesters in curriculum.items %}
-                        <div class="accordion accordion-flush mb-4" id="unitReg1curr-YEAR-{{ year }}">
+                    {% if curriculum_data %}
+                        {% for year, semesters in curriculum_data.items %}
+                        <div class="accordion accordion-flush mb-4" id="unitReg1curr-YEAR-{{ year|slugify }}">
                             <div class="accordion-item">
-                                <h2 class="accordion-header" id="year{{ year }}-curr-unit-reg-heading">
+                                <h2 class="accordion-header" id="year{{ year|slugify }}-curr-unit-reg-heading">
                                     <button class="accordion-button collapsed" type="button" 
-                                        data-bs-toggle="collapse" data-bs-target="#year{{ year }}-curr-unit-reg" 
-                                        aria-expanded="false" aria-controls="year{{ year }}-curr-unit-reg">
+                                        data-bs-toggle="collapse" data-bs-target="#year{{ year|slugify }}-curr-unit-reg" 
+                                        aria-expanded="false" aria-controls="year{{ year|slugify }}-curr-unit-reg">
                                         <i class="bi bi-calendar-event me-2"></i>
                                         YEAR {{ year }}
                                         <span class="badge bg-primary ms-2">
-                                            {% for semester, subjects in semesters.items %}{{ subjects|length }}{% if not forloop.last %} + {% endif %}{% endfor %} units
+                                            {% for semester, units in semesters.items %}{{ units|length }}{% if not forloop.last %} + {% endif %}{% endfor %} units
                                         </span>
                                     </button>
                                 </h2>
-                                <div id="year{{ year }}-curr-unit-reg" class="accordion-collapse collapse" 
-                                    aria-labelledby="year{{ year }}-curr-unit-reg-heading" 
-                                    data-bs-parent="#unitReg1curr-YEAR-{{ year }}">
+                                <div id="year{{ year|slugify }}-curr-unit-reg" class="accordion-collapse collapse" 
+                                    aria-labelledby="year{{ year|slugify }}-curr-unit-reg-heading" 
+                                    data-bs-parent="#unitReg1curr-YEAR-{{ year|slugify }}">
                                     <div class="accordion-body">
-                                        <div class="accordion accordion-flush" id="year{{ year }}unitRegcurr">
-                                            {% for semester, subjects in semesters.items %}
+                                        <div class="accordion accordion-flush" id="year{{ year|slugify }}unitRegcurr">
+                                            {% for semester, units in semesters.items %}
                                             <div class="accordion-item">
                                                 <h2 class="accordion-header" 
-                                                    id="sem{{ semester }}-curr-unit-reg-year{{ year }}-heading">
+                                                    id="sem{{ semester|slugify }}-curr-unit-reg-year{{ year|slugify }}-heading">
                                                     <button class="accordion-button collapsed" type="button" 
                                                         data-bs-toggle="collapse" 
-                                                        data-bs-target="#sem{{ semester }}-curr-unit-reg-year{{ year }}" 
+                                                        data-bs-target="#sem{{ semester|slugify }}-curr-unit-reg-year{{ year|slugify }}" 
                                                         aria-expanded="false" 
-                                                        aria-controls="sem{{ semester }}-curr-unit-reg-year{{ year }}">
+                                                        aria-controls="sem{{ semester|slugify }}-curr-unit-reg-year{{ year|slugify }}">
                                                         <i class="bi bi-bookmark me-2"></i>
                                                         SEMESTER {{ semester }}
-                                                        <span class="badge bg-info ms-2">{{ subjects|length }} units</span>
+                                                        <span class="badge bg-info ms-2">{{ units|length }} units</span>
                                                     </button>
                                                 </h2>
-                                                <div id="sem{{ semester }}-curr-unit-reg-year{{ year }}" 
+                                                <div id="sem{{ semester|slugify }}-curr-unit-reg-year{{ year|slugify }}" 
                                                     class="accordion-collapse collapse" 
-                                                    aria-labelledby="sem{{ semester }}-curr-unit-reg-year{{ year }}-heading" 
-                                                    data-bs-parent="#year{{ year }}unitRegcurr">
+                                                    aria-labelledby="sem{{ semester|slugify }}-curr-unit-reg-year{{ year|slugify }}-heading" 
+                                                    data-bs-parent="#year{{ year|slugify }}unitRegcurr">
                                                     <div class="accordion-body">
                                                         <div class="row">
                                                             <div class="col-md-12 table-responsive">
@@ -384,36 +372,28 @@
                                                                             <th>Unit Name</th>
                                                                             <th>Type</th>
                                                                             <th>Credits</th>
-                                                                            <th>Contact Hours</th>
                                                                             <th>Prerequisites</th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody>
-                                                                        {% for subject in subjects %}
+                                                                        {% for unit in units %}
                                                                         <tr>
-                                                                            <td><strong>{{ subject.code }}</strong></td>
+                                                                            <td><strong>{{ unit.code }}</strong></td>
                                                                             <td>
-                                                                                {{ subject.name }}
-                                                                                {% if subject.description %}
-                                                                                <br><small class="text-muted">{{ subject.description|truncatewords:10 }}</small>
+                                                                                {{ unit.name }}
+                                                                                {% if unit.description %}
+                                                                                <br><small class="text-muted">{{ unit.description|truncatewords:10 }}</small>
                                                                                 {% endif %}
                                                                             </td>
                                                                             <td>
-                                                                                <span class="badge bg-info">{{ subject.get_unit_type_display }}</span>
+                                                                                <span class="badge bg-info">{{ unit.get_unit_type_display }}</span>
                                                                             </td>
                                                                             <td>
-                                                                                <span class="badge bg-secondary">{{ subject.credit_hours }}</span>
+                                                                                <span class="badge bg-secondary">{{ unit.credit_hours }}</span>
                                                                             </td>
                                                                             <td>
-                                                                                <small>
-                                                                                    T: {{ subject.theory_hours }}, 
-                                                                                    P: {{ subject.practical_hours }}, 
-                                                                                    C: {{ subject.clinical_hours }}
-                                                                                </small>
-                                                                            </td>
-                                                                            <td>
-                                                                                {% if subject.prerequisites.exists %}
-                                                                                    {% for prereq in subject.prerequisites.all %}
+                                                                                {% if unit.prerequisites.exists %}
+                                                                                    {% for prereq in unit.prerequisites.all %}
                                                                                         <small class="badge bg-warning text-dark">{{ prereq.code }}</small>
                                                                                         {% if not forloop.last %}<br>{% endif %}
                                                                                     {% endfor %}
@@ -571,13 +551,16 @@
 }
 </style>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Bootstrap tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
+    // Initialize Bootstrap tooltips (check if bootstrap is loaded)
+    if (typeof bootstrap !== 'undefined') {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
     
     // Unit selection functionality
     const unitCheckboxes = document.querySelectorAll('.unit-checkbox');
@@ -589,7 +572,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update selected count
     function updateSelectedCount() {
         const checked = document.querySelectorAll('.unit-checkbox:checked').length;
-        selectedCount.textContent = `${checked} unit${checked !== 1 ? 's' : ''} selected`;
+        if (selectedCount) {
+            selectedCount.textContent = `${checked} unit${checked !== 1 ? 's' : ''} selected`;
+        }
         
         // Update select all button text
         if (selectAllBtn) {
@@ -629,7 +614,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Initial count update
-    updateSelectedCount();
+    if (unitCheckboxes.length > 0) {
+        updateSelectedCount();
+    }
     
     // Form submission validation
     if (submitForm) {
@@ -662,8 +649,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const alerts = document.querySelectorAll('.alert:not(.alert-info)');
     alerts.forEach(alert => {
         setTimeout(() => {
-            const bsAlert = new bootstrap.Alert(alert);
-            bsAlert.close();
+            if (typeof bootstrap !== 'undefined') {
+                const bsAlert = new bootstrap.Alert(alert);
+                if (bsAlert) bsAlert.close();
+            } else {
+                alert.style.display = 'none';
+            }
         }, 5000);
     });
     
@@ -671,10 +662,28 @@ document.addEventListener('DOMContentLoaded', function() {
     const accordionButtons = document.querySelectorAll('.accordion-button');
     accordionButtons.forEach(button => {
         button.addEventListener('click', function() {
+            // Add a small delay to allow accordion animation to complete
             setTimeout(() => {
-                this.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }, 350); // Wait for accordion animation
+                try {
+                    this.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'nearest',
+                        inline: 'nearest'
+                    });
+                } catch (error) {
+                    // Fallback for older browsers
+                    this.scrollIntoView(false);
+                }
+            }, 350);
         });
+    });
+    
+    // Handle potential Bootstrap issues
+    window.addEventListener('error', function(e) {
+        if (e.message && e.message.includes('Failed to load resource')) {
+            console.warn('Resource loading error:', e.message);
+            // Continue execution, don't let missing resources break functionality
+        }
     });
 });
 </script>

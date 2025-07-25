@@ -10,6 +10,5 @@ urlpatterns = [
     # Student dashboard and main views
     path('dashboard/', views.student_dashboard, name='student_dashboard'),
     path('units/', views.student_units_view, name='student_units'),
-    path('units/available/', views.get_available_units_ajax, name='available_units_ajax'),
 
 ]
