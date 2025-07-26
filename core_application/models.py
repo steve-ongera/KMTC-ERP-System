@@ -735,66 +735,320 @@ class BookIssue(models.Model):
 
 # Hostel/Accommodation Models
 class Hostel(models.Model):
+    """Hostel buildings for accommodation"""
     HOSTEL_TYPES = (
-        ('male', 'Male Hostel'),
-        ('female', 'Female Hostel'),
-        ('mixed', 'Mixed Hostel'),
+        ('boys', 'Boys Hostel'),
+        ('girls', 'Girls Hostel'),
     )
     
     name = models.CharField(max_length=100)
     hostel_type = models.CharField(max_length=10, choices=HOSTEL_TYPES)
-    total_rooms = models.IntegerField()
-    capacity = models.IntegerField()
-    warden_name = models.CharField(max_length=100)
-    warden_contact = models.CharField(max_length=15)
-    facilities = models.TextField(help_text="Available facilities")
-    rules_regulations = models.TextField()
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='hostels')
+    warden = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_hostels')
+    total_rooms = models.IntegerField(validators=[MinValueValidator(1)])
+    description = models.TextField(blank=True)
+    facilities = models.TextField(blank=True, help_text="Available facilities like WiFi, laundry, etc.")
+    rules_and_regulations = models.TextField( null=True, blank=True,)
     is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True,)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True,)
     
-    def available_capacity(self):
-        occupied = self.room_allocations.filter(is_active=True).count()
-        return self.capacity - occupied
+    class Meta:
+        ordering = ['hostel_type', 'name']
     
     def __str__(self):
         return f"{self.name} ({self.get_hostel_type_display()})"
+    
+    def get_available_rooms_count(self, academic_year):
+        """Get count of rooms with available beds for the academic year"""
+        return self.rooms.filter(
+            beds__academic_year=academic_year,
+            beds__is_available=True,
+            is_active=True
+        ).distinct().count()
+    
+    def get_total_beds_count(self, academic_year):
+        """Get total beds in hostel for academic year"""
+        return self.rooms.filter(
+            beds__academic_year=academic_year,
+            is_active=True
+        ).aggregate(
+            total=models.Count('beds')
+        )['total'] or 0
+    
+    def get_occupied_beds_count(self, academic_year):
+        """Get count of occupied beds for academic year"""
+        return self.rooms.filter(
+            beds__academic_year=academic_year,
+            beds__is_available=False,
+            is_active=True
+        ).aggregate(
+            occupied=models.Count('beds')
+        )['occupied'] or 0
+
 
 class Room(models.Model):
-    ROOM_TYPES = (
-        ('single', 'Single Room'),
-        ('double', 'Double Room'),
-        ('triple', 'Triple Room'),
-        ('dormitory', 'Dormitory'),
-    )
-    
+    """Individual rooms in hostels"""
     hostel = models.ForeignKey(Hostel, on_delete=models.CASCADE, related_name='rooms')
-    room_number = models.CharField(max_length=20)
-    room_type = models.CharField(max_length=15, choices=ROOM_TYPES)
-    capacity = models.IntegerField()
-    floor = models.CharField(max_length=10)
-    facilities = models.TextField(blank=True)
-    monthly_rent = models.DecimalField(max_digits=8, decimal_places=2)
-    is_available = models.BooleanField(default=True)
+    room_number = models.CharField(max_length=10)
+    floor = models.IntegerField(validators=[MinValueValidator(0)], help_text="Floor number (0 for ground floor)")
+    capacity = models.IntegerField(default=4, validators=[MinValueValidator(1), MaxValueValidator(8)])
+    description = models.TextField(blank=True)
+    facilities = models.TextField(blank=True, help_text="Room-specific facilities")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True , blank=True , null=True)
     
     class Meta:
         unique_together = ['hostel', 'room_number']
+        ordering = ['hostel', 'floor', 'room_number']
     
     def __str__(self):
         return f"{self.hostel.name} - Room {self.room_number}"
+    
+    def get_available_beds_count(self, academic_year):
+        """Get count of available beds in this room for academic year"""
+        return self.beds.filter(
+            academic_year=academic_year,
+            is_available=True
+        ).count()
+    
+    def get_occupied_beds_count(self, academic_year):
+        """Get count of occupied beds in this room for academic year"""
+        return self.beds.filter(
+            academic_year=academic_year,
+            is_available=False
+        ).count()
+    
+    def is_full(self, academic_year):
+        """Check if room is fully occupied for academic year"""
+        return self.get_available_beds_count(academic_year) == 0
 
-class RoomAllocation(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='room_allocations')
-    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='allocations')
-    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name='room_allocations')
-    allocation_date = models.DateField(auto_now_add=True)
-    checkout_date = models.DateField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)
-    allocated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+class Bed(models.Model):
+    """Individual beds in rooms for each academic year"""
+    BED_POSITIONS = (
+        ('bed_1', 'Bed 1'),
+        ('bed_2', 'Bed 2'),
+        ('bed_3', 'Bed 3'),
+        ('bed_4', 'Bed 4'),
+    )
+    
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='beds')
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name='hostel_beds')
+    bed_position = models.CharField(max_length=10, choices=BED_POSITIONS)
+    bed_number = models.CharField(max_length=20, help_text="Unique bed identifier")
+    is_available = models.BooleanField(default=True)
+    maintenance_status = models.CharField(
+        max_length=20,
+        choices=(
+            ('good', 'Good Condition'),
+            ('needs_repair', 'Needs Repair'),
+            ('under_maintenance', 'Under Maintenance'),
+            ('out_of_order', 'Out of Order'),
+        ),
+        default='good'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
-        unique_together = ['student', 'academic_year']
+        unique_together = ['room', 'academic_year', 'bed_position']
+        ordering = ['room', 'bed_position']
     
     def __str__(self):
-        return f"{self.student.registration_number} - {self.room}"
+        return f"{self.room} - {self.bed_number} ({self.academic_year})"
+    
+    def save(self, *args, **kwargs):
+        if not self.bed_number:
+            # Auto-generate bed number: HOSTEL_ROOM_BED_YEAR
+            hostel_code = self.room.hostel.name[:3].upper()
+            year_code = self.academic_year.year.split('/')[0][-2:]  # Last 2 digits of start year
+            self.bed_number = f"{hostel_code}{self.room.room_number}{self.bed_position[-1]}{year_code}"
+        super().save(*args, **kwargs)
+
+
+class HostelBooking(models.Model):
+    """Student hostel booking records"""
+    BOOKING_STATUS = (
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('cancelled', 'Cancelled'),
+        ('checked_in', 'Checked In'),
+        ('checked_out', 'Checked Out'),
+    )
+    
+    PAYMENT_STATUS = (
+        ('pending', 'Payment Pending'),
+        ('partial', 'Partially Paid'),
+        ('paid', 'Fully Paid'),
+        ('refunded', 'Refunded'),
+    )
+    
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='hostel_bookings')
+    bed = models.ForeignKey(Bed, on_delete=models.CASCADE, related_name='bookings')
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name='hostel_bookings')
+    
+    booking_date = models.DateTimeField(auto_now_add=True)
+    check_in_date = models.DateField(null=True, blank=True)
+    check_out_date = models.DateField(null=True, blank=True)
+    expected_checkout_date = models.DateField(null=True, blank=True)
+    
+    booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS, default='pending')
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='pending')
+    
+    booking_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
+    # Approval workflow
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_bookings')
+    approval_date = models.DateTimeField(null=True, blank=True)
+    approval_remarks = models.TextField(blank=True)
+    
+    # Check-in/out details
+    checked_in_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='checked_in_students')
+    checked_out_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='checked_out_students')
+    
+    remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['student', 'academic_year']  # One booking per student per academic year
+        ordering = ['-booking_date']
+    
+    def __str__(self):
+        return f"{self.student.registration_number} - {self.bed} ({self.academic_year})"
+    
+    def save(self, *args, **kwargs):
+        # Update bed availability based on booking status
+        if self.pk:  # If updating existing booking
+            old_booking = HostelBooking.objects.get(pk=self.pk)
+            if old_booking.booking_status != self.booking_status:
+                if self.booking_status in ['approved', 'checked_in']:
+                    self.bed.is_available = False
+                    self.bed.save()
+                elif self.booking_status in ['rejected', 'cancelled', 'checked_out']:
+                    self.bed.is_available = True
+                    self.bed.save()
+        else:  # New booking
+            if self.booking_status in ['approved', 'checked_in']:
+                self.bed.is_available = False
+                self.bed.save()
+        
+        super().save(*args, **kwargs)
+    
+    @property
+    def balance_due(self):
+        """Calculate remaining balance"""
+        return self.booking_fee - self.amount_paid
+    
+    @property
+    def is_fully_paid(self):
+        """Check if booking is fully paid"""
+        return self.amount_paid >= self.booking_fee
+
+class HostelPayment(models.Model):
+    """Track hostel fee payments"""
+    PAYMENT_METHODS = (
+        ('cash', 'Cash'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('mobile_money', 'Mobile Money'),
+        ('cheque', 'Cheque'),
+        ('card', 'Credit/Debit Card'),
+    )
+    
+    booking = models.ForeignKey(HostelBooking, on_delete=models.CASCADE, related_name='payments')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_date = models.DateField()
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
+    reference_number = models.CharField(max_length=50, blank=True)
+    receipt_number = models.CharField(max_length=50, unique=True)
+    received_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-payment_date']
+    
+    def __str__(self):
+        return f"{self.booking.student.registration_number} - {self.amount} ({self.payment_date})"
+    
+    def save(self, *args, **kwargs):
+        if not self.receipt_number:
+            # Auto-generate receipt number
+            year = timezone.now().year
+            count = HostelPayment.objects.filter(
+                created_at__year=year
+            ).count() + 1
+            self.receipt_number = f"HPR{year}{count:05d}"
+        
+        super().save(*args, **kwargs)
+        
+        # Update booking payment status
+        booking = self.booking
+        total_paid = booking.payments.aggregate(
+            total=models.Sum('amount')
+        )['total'] or 0
+        booking.amount_paid = total_paid
+        
+        if total_paid >= booking.booking_fee:
+            booking.payment_status = 'paid'
+        elif total_paid > 0:
+            booking.payment_status = 'partial'
+        else:
+            booking.payment_status = 'pending'
+        
+        booking.save()
+
+class HostelIncident(models.Model):
+    """Track incidents and disciplinary issues in hostels"""
+    INCIDENT_TYPES = (
+        ('damage', 'Property Damage'),
+        ('noise', 'Noise Complaint'),
+        ('theft', 'Theft'),
+        ('violence', 'Violence/Fighting'),
+        ('drugs', 'Drug/Alcohol Related'),
+        ('curfew', 'Curfew Violation'),
+        ('cleanliness', 'Cleanliness Issue'),
+        ('other', 'Other'),
+    )
+    
+    SEVERITY_LEVELS = (
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('critical', 'Critical'),
+    )
+    
+    STATUS_CHOICES = (
+        ('reported', 'Reported'),
+        ('investigating', 'Under Investigation'),
+        ('resolved', 'Resolved'),
+        ('escalated', 'Escalated'),
+    )
+    
+    booking = models.ForeignKey(HostelBooking, on_delete=models.CASCADE, related_name='incidents')
+    incident_type = models.CharField(max_length=20, choices=INCIDENT_TYPES)
+    severity = models.CharField(max_length=10, choices=SEVERITY_LEVELS, default='low')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='reported')
+    
+    incident_date = models.DateTimeField()
+    description = models.TextField()
+    action_taken = models.TextField(blank=True)
+    
+    reported_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reported_incidents')
+    handled_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='handled_incidents')
+    
+    fine_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    fine_paid = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-incident_date']
+    
+    def __str__(self):
+        return f"{self.booking.student.registration_number} - {self.get_incident_type_display()} ({self.incident_date.date()})"
 
 # Student Services Models
 class StudentService(models.Model):
@@ -1084,3 +1338,383 @@ class SystemConfiguration(models.Model):
     
     def __str__(self):
         return f"{self.key} = {self.value}"
+
+
+
+# Hostel Management Models 
+
+# class Hostel(models.Model):
+#     """Hostel buildings for accommodation"""
+#     HOSTEL_TYPES = (
+#         ('boys', 'Boys Hostel'),
+#         ('girls', 'Girls Hostel'),
+#     )
+    
+#     name = models.CharField(max_length=100)
+#     hostel_type = models.CharField(max_length=10, choices=HOSTEL_TYPES)
+#     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='hostels')
+#     warden = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_hostels')
+#     total_rooms = models.IntegerField(validators=[MinValueValidator(1)])
+#     description = models.TextField(blank=True)
+#     facilities = models.TextField(blank=True, help_text="Available facilities like WiFi, laundry, etc.")
+#     rules_and_regulations = models.TextField(blank=True)
+#     is_active = models.BooleanField(default=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
+    
+#     class Meta:
+#         ordering = ['hostel_type', 'name']
+    
+#     def __str__(self):
+#         return f"{self.name} ({self.get_hostel_type_display()})"
+    
+#     def get_available_rooms_count(self, academic_year):
+#         """Get count of rooms with available beds for the academic year"""
+#         return self.rooms.filter(
+#             beds__academic_year=academic_year,
+#             beds__is_available=True,
+#             is_active=True
+#         ).distinct().count()
+    
+#     def get_total_beds_count(self, academic_year):
+#         """Get total beds in hostel for academic year"""
+#         return self.rooms.filter(
+#             beds__academic_year=academic_year,
+#             is_active=True
+#         ).aggregate(
+#             total=models.Count('beds')
+#         )['total'] or 0
+    
+#     def get_occupied_beds_count(self, academic_year):
+#         """Get count of occupied beds for academic year"""
+#         return self.rooms.filter(
+#             beds__academic_year=academic_year,
+#             beds__is_available=False,
+#             is_active=True
+#         ).aggregate(
+#             occupied=models.Count('beds')
+#         )['occupied'] or 0
+
+# class Room(models.Model):
+#     """Individual rooms in hostels"""
+#     hostel = models.ForeignKey(Hostel, on_delete=models.CASCADE, related_name='rooms')
+#     room_number = models.CharField(max_length=10)
+#     floor = models.IntegerField(validators=[MinValueValidator(0)], help_text="Floor number (0 for ground floor)")
+#     capacity = models.IntegerField(default=4, validators=[MinValueValidator(1), MaxValueValidator(8)])
+#     description = models.TextField(blank=True)
+#     facilities = models.TextField(blank=True, help_text="Room-specific facilities")
+#     is_active = models.BooleanField(default=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
+    
+#     class Meta:
+#         unique_together = ['hostel', 'room_number']
+#         ordering = ['hostel', 'floor', 'room_number']
+    
+#     def __str__(self):
+#         return f"{self.hostel.name} - Room {self.room_number}"
+    
+#     def get_available_beds_count(self, academic_year):
+#         """Get count of available beds in this room for academic year"""
+#         return self.beds.filter(
+#             academic_year=academic_year,
+#             is_available=True
+#         ).count()
+    
+#     def get_occupied_beds_count(self, academic_year):
+#         """Get count of occupied beds in this room for academic year"""
+#         return self.beds.filter(
+#             academic_year=academic_year,
+#             is_available=False
+#         ).count()
+    
+#     def is_full(self, academic_year):
+#         """Check if room is fully occupied for academic year"""
+#         return self.get_available_beds_count(academic_year) == 0
+
+# class Bed(models.Model):
+#     """Individual beds in rooms for each academic year"""
+#     BED_POSITIONS = (
+#         ('bed_1', 'Bed 1'),
+#         ('bed_2', 'Bed 2'),
+#         ('bed_3', 'Bed 3'),
+#         ('bed_4', 'Bed 4'),
+#     )
+    
+#     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='beds')
+#     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name='hostel_beds')
+#     bed_position = models.CharField(max_length=10, choices=BED_POSITIONS)
+#     bed_number = models.CharField(max_length=20, help_text="Unique bed identifier")
+#     is_available = models.BooleanField(default=True)
+#     maintenance_status = models.CharField(
+#         max_length=20,
+#         choices=(
+#             ('good', 'Good Condition'),
+#             ('needs_repair', 'Needs Repair'),
+#             ('under_maintenance', 'Under Maintenance'),
+#             ('out_of_order', 'Out of Order'),
+#         ),
+#         default='good'
+#     )
+#     created_at = models.DateTimeField(auto_now_add=True)
+    
+#     class Meta:
+#         unique_together = ['room', 'academic_year', 'bed_position']
+#         ordering = ['room', 'bed_position']
+    
+#     def __str__(self):
+#         return f"{self.room} - {self.bed_number} ({self.academic_year})"
+    
+#     def save(self, *args, **kwargs):
+#         if not self.bed_number:
+#             # Auto-generate bed number: HOSTEL_ROOM_BED_YEAR
+#             hostel_code = self.room.hostel.name[:3].upper()
+#             year_code = self.academic_year.year.split('/')[0][-2:]  # Last 2 digits of start year
+#             self.bed_number = f"{hostel_code}{self.room.room_number}{self.bed_position[-1]}{year_code}"
+#         super().save(*args, **kwargs)
+
+# class HostelBooking(models.Model):
+#     """Student hostel booking records"""
+#     BOOKING_STATUS = (
+#         ('pending', 'Pending Approval'),
+#         ('approved', 'Approved'),
+#         ('rejected', 'Rejected'),
+#         ('cancelled', 'Cancelled'),
+#         ('checked_in', 'Checked In'),
+#         ('checked_out', 'Checked Out'),
+#     )
+    
+#     PAYMENT_STATUS = (
+#         ('pending', 'Payment Pending'),
+#         ('partial', 'Partially Paid'),
+#         ('paid', 'Fully Paid'),
+#         ('refunded', 'Refunded'),
+#     )
+    
+#     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='hostel_bookings')
+#     bed = models.ForeignKey(Bed, on_delete=models.CASCADE, related_name='bookings')
+#     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name='hostel_bookings')
+    
+#     booking_date = models.DateTimeField(auto_now_add=True)
+#     check_in_date = models.DateField(null=True, blank=True)
+#     check_out_date = models.DateField(null=True, blank=True)
+#     expected_checkout_date = models.DateField(null=True, blank=True)
+    
+#     booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS, default='pending')
+#     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='pending')
+    
+#     booking_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+#     amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
+#     # Approval workflow
+#     approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_bookings')
+#     approval_date = models.DateTimeField(null=True, blank=True)
+#     approval_remarks = models.TextField(blank=True)
+    
+#     # Check-in/out details
+#     checked_in_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='checked_in_students')
+#     checked_out_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='checked_out_students')
+    
+#     remarks = models.TextField(blank=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
+    
+#     class Meta:
+#         unique_together = ['student', 'academic_year']  # One booking per student per academic year
+#         ordering = ['-booking_date']
+    
+#     def __str__(self):
+#         return f"{self.student.registration_number} - {self.bed} ({self.academic_year})"
+    
+#     def save(self, *args, **kwargs):
+#         # Update bed availability based on booking status
+#         if self.pk:  # If updating existing booking
+#             old_booking = HostelBooking.objects.get(pk=self.pk)
+#             if old_booking.booking_status != self.booking_status:
+#                 if self.booking_status in ['approved', 'checked_in']:
+#                     self.bed.is_available = False
+#                     self.bed.save()
+#                 elif self.booking_status in ['rejected', 'cancelled', 'checked_out']:
+#                     self.bed.is_available = True
+#                     self.bed.save()
+#         else:  # New booking
+#             if self.booking_status in ['approved', 'checked_in']:
+#                 self.bed.is_available = False
+#                 self.bed.save()
+        
+#         super().save(*args, **kwargs)
+    
+#     @property
+#     def balance_due(self):
+#         """Calculate remaining balance"""
+#         return self.booking_fee - self.amount_paid
+    
+#     @property
+#     def is_fully_paid(self):
+#         """Check if booking is fully paid"""
+#         return self.amount_paid >= self.booking_fee
+
+# class HostelPayment(models.Model):
+#     """Track hostel fee payments"""
+#     PAYMENT_METHODS = (
+#         ('cash', 'Cash'),
+#         ('bank_transfer', 'Bank Transfer'),
+#         ('mobile_money', 'Mobile Money'),
+#         ('cheque', 'Cheque'),
+#         ('card', 'Credit/Debit Card'),
+#     )
+    
+#     booking = models.ForeignKey(HostelBooking, on_delete=models.CASCADE, related_name='payments')
+#     amount = models.DecimalField(max_digits=10, decimal_places=2)
+#     payment_date = models.DateField()
+#     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
+#     reference_number = models.CharField(max_length=50, blank=True)
+#     receipt_number = models.CharField(max_length=50, unique=True)
+#     received_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+#     remarks = models.TextField(blank=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
+    
+#     class Meta:
+#         ordering = ['-payment_date']
+    
+#     def __str__(self):
+#         return f"{self.booking.student.registration_number} - {self.amount} ({self.payment_date})"
+    
+#     def save(self, *args, **kwargs):
+#         if not self.receipt_number:
+#             # Auto-generate receipt number
+#             year = timezone.now().year
+#             count = HostelPayment.objects.filter(
+#                 created_at__year=year
+#             ).count() + 1
+#             self.receipt_number = f"HPR{year}{count:05d}"
+        
+#         super().save(*args, **kwargs)
+        
+#         # Update booking payment status
+#         booking = self.booking
+#         total_paid = booking.payments.aggregate(
+#             total=models.Sum('amount')
+#         )['total'] or 0
+#         booking.amount_paid = total_paid
+        
+#         if total_paid >= booking.booking_fee:
+#             booking.payment_status = 'paid'
+#         elif total_paid > 0:
+#             booking.payment_status = 'partial'
+#         else:
+#             booking.payment_status = 'pending'
+        
+#         booking.save()
+
+# class HostelIncident(models.Model):
+#     """Track incidents and disciplinary issues in hostels"""
+#     INCIDENT_TYPES = (
+#         ('damage', 'Property Damage'),
+#         ('noise', 'Noise Complaint'),
+#         ('theft', 'Theft'),
+#         ('violence', 'Violence/Fighting'),
+#         ('drugs', 'Drug/Alcohol Related'),
+#         ('curfew', 'Curfew Violation'),
+#         ('cleanliness', 'Cleanliness Issue'),
+#         ('other', 'Other'),
+#     )
+    
+#     SEVERITY_LEVELS = (
+#         ('low', 'Low'),
+#         ('medium', 'Medium'),
+#         ('high', 'High'),
+#         ('critical', 'Critical'),
+#     )
+    
+#     STATUS_CHOICES = (
+#         ('reported', 'Reported'),
+#         ('investigating', 'Under Investigation'),
+#         ('resolved', 'Resolved'),
+#         ('escalated', 'Escalated'),
+#     )
+    
+#     booking = models.ForeignKey(HostelBooking, on_delete=models.CASCADE, related_name='incidents')
+#     incident_type = models.CharField(max_length=20, choices=INCIDENT_TYPES)
+#     severity = models.CharField(max_length=10, choices=SEVERITY_LEVELS, default='low')
+#     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='reported')
+    
+#     incident_date = models.DateTimeField()
+#     description = models.TextField()
+#     action_taken = models.TextField(blank=True)
+    
+#     reported_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reported_incidents')
+#     handled_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='handled_incidents')
+    
+#     fine_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+#     fine_paid = models.BooleanField(default=False)
+    
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
+    
+#     class Meta:
+#         ordering = ['-incident_date']
+    
+#     def __str__(self):
+#         return f"{self.booking.student.registration_number} - {self.get_incident_type_display()} ({self.incident_date.date()})"
+
+# # Signal to create beds when academic year is created
+# from django.db.models.signals import post_save
+# from django.dispatch import receiver
+
+# @receiver(post_save, sender=AcademicYear)
+# def create_beds_for_new_academic_year(sender, instance, created, **kwargs):
+#     """Automatically create beds for all active rooms when a new academic year is created"""
+#     if created:
+#         rooms = Room.objects.filter(is_active=True)
+#         beds_to_create = []
+        
+#         for room in rooms:
+#             for i in range(1, room.capacity + 1):
+#                 bed_position = f"bed_{i}"
+#                 beds_to_create.append(
+#                     Bed(
+#                         room=room,
+#                         academic_year=instance,
+#                         bed_position=bed_position,
+#                         is_available=True
+#                     )
+#                 )
+        
+#         if beds_to_create:
+#             Bed.objects.bulk_create(beds_to_create)
+
+# # Management command helper function
+# def setup_hostel_beds_for_existing_academic_years():
+#     """
+#     Helper function to create beds for existing academic years.
+#     Run this as a management command after adding these models.
+#     """
+#     from django.db import transaction
+    
+#     with transaction.atomic():
+#         academic_years = AcademicYear.objects.all()
+#         rooms = Room.objects.filter(is_active=True)
+        
+#         for academic_year in academic_years:
+#             for room in rooms:
+#                 # Check if beds already exist for this room and academic year
+#                 existing_beds = Bed.objects.filter(
+#                     room=room,
+#                     academic_year=academic_year
+#                 ).count()
+                
+#                 if existing_beds == 0:
+#                     beds_to_create = []
+#                     for i in range(1, room.capacity + 1):
+#                         bed_position = f"bed_{i}"
+#                         beds_to_create.append(
+#                             Bed(
+#                                 room=room,
+#                                 academic_year=academic_year,
+#                                 bed_position=bed_position,
+#                                 is_available=True
+#                             )
+#                         )
+                    
+#                     if beds_to_create:
+#                         Bed.objects.bulk_create(beds_to_create)
