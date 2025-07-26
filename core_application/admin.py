@@ -357,57 +357,59 @@ from core_application.utils import get_current_academic_year  # If defined in ut
 # Model Admin Classes
 @admin.register(Hostel)
 class HostelAdmin(admin.ModelAdmin):
-    list_display = ('name', 'hostel_type_display', 'school', 'warden_name', 
-                   'total_rooms', 'available_rooms', 'occupancy_rate', 'is_active')
-    list_filter = (HostelTypeFilter, 'school', 'is_active')
-    search_fields = ('name', 'warden__first_name', 'warden__last_name')
-    inlines = [RoomInline]
-    fieldsets = (
-        ('Basic Information', {
-            'fields': ('name', 'hostel_type', 'school', 'warden')
-        }),
-        ('Capacity Details', {
-            'fields': ('total_rooms',)
-        }),
-        ('Descriptions', {
-            'fields': ('description', 'facilities', 'rules_and_regulations')
-        }),
-        ('Status', {
-            'fields': ('is_active',)
-        }),
-    )
+    list_display = ['name', 'hostel_type', 'total_rooms', 'warden', 'get_available_rooms', 'is_active']
+    list_filter = ['hostel_type', 'is_active', 'school']
+    search_fields = ['name', 'warden__username', 'warden__first_name', 'warden__last_name']
+    readonly_fields = ['created_at', 'updated_at']
     
-    def hostel_type_display(self, obj):
-        return obj.get_hostel_type_display()
-    hostel_type_display.short_description = 'Type'
+    def get_available_rooms(self, obj):
+        """Display available rooms for current academic year"""
+        try:
+            current_year = AcademicYear.objects.get(is_current=True)
+            available = obj.get_available_rooms_count(current_year)
+            return f"{available} rooms"
+        except AcademicYear.DoesNotExist:
+            return "No current academic year set"
     
-    def warden_name(self, obj):
-        return obj.warden.get_full_name() if obj.warden else '-'
-    warden_name.short_description = 'Warden'
+    get_available_rooms.short_description = "Available Rooms"
     
-    def available_rooms(self, obj):
-        return obj.get_available_rooms_count(obj.current_academic_year())
-    available_rooms.short_description = 'Available Rooms'
-    
-    def occupancy_rate(self, obj):
-        academic_year = get_current_academic_year()  # or however you determine the current academic year
-        total = obj.get_total_beds_count(academic_year)
-        occupied = obj.get_occupied_beds_count(academic_year)
-        return f"{occupied}/{total} ({occupied/total*100:.1f}%)" if total > 0 else '0/0 (0%)'
-    occupancy_rate.short_description = 'Occupancy'
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('school', 'warden')
 
 
 @admin.register(Room)
 class RoomAdmin(admin.ModelAdmin):
     list_display = ('room_number', 'hostel', 'floor', 'capacity', 
-                   'available_beds', 'is_active')
+                   'available_beds', 'occupied_beds', 'is_active')
     list_filter = ('hostel', 'floor', 'is_active')
     search_fields = ('room_number', 'hostel__name')
     inlines = [BedInline]
     
     def available_beds(self, obj):
-        return obj.get_available_beds_count(obj.hostel.current_academic_year())
+        """Display available beds for current academic year"""
+        try:
+            current_year = AcademicYear.objects.get(is_current=True)
+            available = obj.get_available_beds_count(current_year)
+            return f"{available} beds"
+        except AcademicYear.DoesNotExist:
+            return "No current academic year set"
+    
     available_beds.short_description = 'Available Beds'
+    
+    def occupied_beds(self, obj):
+        """Display occupied beds for current academic year"""
+        try:
+            current_year = AcademicYear.objects.get(is_current=True)
+            occupied = obj.get_occupied_beds_count(current_year)
+            return f"{occupied} beds"
+        except AcademicYear.DoesNotExist:
+            return "No current academic year set"
+    
+    occupied_beds.short_description = 'Occupied Beds'
+    
+    def get_queryset(self, request):
+        """Optimize queryset with select_related"""
+        return super().get_queryset(request).select_related('hostel')
 
 @admin.register(Bed)
 class BedAdmin(admin.ModelAdmin):
