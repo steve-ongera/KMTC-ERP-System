@@ -41,4 +41,7 @@ urlpatterns = [
     path('students/<str:registration_number>/performance/', views.student_performance, name='student_performance'),
     path('api/programmes-by-school/', views.get_programmes_by_school, name='get_programmes_by_school'),
 
+    path('admin-marks-entry/', views.admin_marks_entry, name='admin_marks_entry'),
+    path('admin-student-info/', views.get_student_info, name='get_student_info'),
+    
 ]

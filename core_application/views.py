@@ -1667,3 +1667,215 @@ def get_programmes_by_school(request):
     
     return JsonResponse(list(programmes), safe=False)
 
+#marks entry 
+from django.http import JsonResponse, HttpResponseForbidden
+from django.db import transaction
+from django.forms import modelformset_factory
+from django.core.exceptions import ValidationError
+from django.contrib import messages
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from .models import Student, Unit, Enrollment, Grade, Semester, AcademicYear
+import json
+
+@login_required
+def admin_marks_entry(request):
+    # Check if user is admin
+    if request.user.user_type != 'admin':
+        return HttpResponseForbidden("Access denied. Admins only.")
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    if not current_academic_year or not current_semester:
+        messages.error(request, "Please set current academic year and semester first.")
+        return render(request, 'admin/admin_marks_entry.html', {'error': 'No current academic year/semester set'})
+    
+    student = None
+    enrollments = []
+    grades_data = {}
+    
+    # Handle student search
+    if request.method == 'GET' and 'registration_number' in request.GET:
+        registration_number = request.GET.get('registration_number')
+        if registration_number:
+            try:
+                student = Student.objects.get(registration_number=registration_number, status='active')
+                
+                # Get enrollments for current semester
+                enrollments = Enrollment.objects.filter(
+                    student=student,
+                    semester=current_semester,
+                    is_active=True
+                ).select_related('unit').order_by('unit__code')
+                
+                # Get existing grades
+                for enrollment in enrollments:
+                    try:
+                        grade = Grade.objects.get(enrollment=enrollment)
+                        grades_data[enrollment.id] = {
+                            'theory_marks': grade.theory_marks,
+                            'practical_marks': grade.practical_marks,
+                            'clinical_marks': grade.clinical_marks,
+                            'continuous_assessment': grade.continuous_assessment,
+                            'final_exam_marks': grade.final_exam_marks,
+                            'total_marks': grade.total_marks,
+                            'grade': grade.grade,
+                            'grade_points': grade.grade_points,
+                            'is_passed': grade.is_passed,
+                            'exam_date': grade.exam_date.strftime('%Y-%m-%d') if grade.exam_date else '',
+                            'remarks': grade.remarks or ''
+                        }
+                    except Grade.DoesNotExist:
+                        grades_data[enrollment.id] = {
+                            'theory_marks': None,
+                            'practical_marks': None,
+                            'clinical_marks': None,
+                            'continuous_assessment': None,
+                            'final_exam_marks': None,
+                            'total_marks': None,
+                            'grade': '',
+                            'grade_points': None,
+                            'is_passed': False,
+                            'exam_date': '',
+                            'remarks': ''
+                        }
+                
+            except Student.DoesNotExist:
+                messages.error(request, f"Student with registration number '{registration_number}' not found or not active.")
+    
+    # Handle marks submission
+    if request.method == 'POST' and 'save_marks' in request.POST:
+        registration_number = request.POST.get('registration_number')
+        if not registration_number:
+            messages.error(request, "Student registration number is required.")
+            return render(request, 'admin/admin_marks_entry.html', {})
+        
+        try:
+            student = Student.objects.get(registration_number=registration_number, status='active')
+            enrollments = Enrollment.objects.filter(
+                student=student,
+                semester=current_semester,
+                is_active=True
+            ).select_related('unit')
+            
+            with transaction.atomic():
+                for enrollment in enrollments:
+                    enrollment_id = str(enrollment.id)
+                    
+                    # Get form data
+                    theory_marks = request.POST.get(f'theory_marks_{enrollment_id}')
+                    practical_marks = request.POST.get(f'practical_marks_{enrollment_id}')
+                    clinical_marks = request.POST.get(f'clinical_marks_{enrollment_id}')
+                    continuous_assessment = request.POST.get(f'continuous_assessment_{enrollment_id}')
+                    final_exam_marks = request.POST.get(f'final_exam_marks_{enrollment_id}')
+                    exam_date = request.POST.get(f'exam_date_{enrollment_id}')
+                    remarks = request.POST.get(f'remarks_{enrollment_id}')
+                    
+                    # Convert to appropriate types
+                    theory_marks = float(theory_marks) if theory_marks else None
+                    practical_marks = float(practical_marks) if practical_marks else None
+                    clinical_marks = float(clinical_marks) if clinical_marks else None
+                    continuous_assessment = float(continuous_assessment) if continuous_assessment else None
+                    final_exam_marks = float(final_exam_marks) if final_exam_marks else None
+                    exam_date = exam_date if exam_date else None
+                    remarks = remarks.strip() if remarks else ''
+                    
+                    # Create or update grade (let the model's save method handle calculations)
+                    grade, created = Grade.objects.get_or_create(
+                        enrollment=enrollment,
+                        defaults={
+                            'theory_marks': theory_marks,
+                            'practical_marks': practical_marks,
+                            'clinical_marks': clinical_marks,
+                            'continuous_assessment': continuous_assessment,
+                            'final_exam_marks': final_exam_marks,
+                            'exam_date': exam_date,
+                            'remarks': remarks
+                        }
+                    )
+                    
+                    if not created:
+                        grade.theory_marks = theory_marks
+                        grade.practical_marks = practical_marks
+                        grade.clinical_marks = clinical_marks
+                        grade.continuous_assessment = continuous_assessment
+                        grade.final_exam_marks = final_exam_marks
+                        grade.exam_date = exam_date
+                        grade.remarks = remarks
+                        grade.save()  # This will trigger the model's save method to calculate totals and grades
+                
+                messages.success(request, f"Marks saved successfully for student {student.registration_number}")
+                
+                # Redirect to student performance page after successful save
+                return redirect('student_performance', registration_number=registration_number)
+                
+        except Student.DoesNotExist:
+            messages.error(request, f"Student with registration number '{registration_number}' not found.")
+        except Exception as e:
+            messages.error(request, f"Error saving marks: {str(e)}")
+    
+    # Get all active students for dropdown (optional)
+    all_students = Student.objects.filter(status='active').select_related('user', 'programme').order_by('registration_number')
+    
+    context = {
+        'student': student,
+        'enrollments': enrollments,
+        'grades_data': grades_data,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'all_students': all_students,
+    }
+    
+    return render(request, 'admin/admin_marks_entry.html', context)
+
+@login_required
+def get_student_info(request):
+    """AJAX endpoint to get student information"""
+    if request.user.user_type != 'admin':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    registration_number = request.GET.get('registration_number')
+    if not registration_number:
+        return JsonResponse({'error': 'Student registration number required'}, status=400)
+    
+    try:
+        student = Student.objects.get(registration_number=registration_number, status='active')
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        enrollments = Enrollment.objects.filter(
+            student=student,
+            semester=current_semester,
+            is_active=True
+        ).select_related('unit')
+        
+        data = {
+            'student': {
+                'registration_number': student.registration_number,
+                'name': student.user.get_full_name(),
+                'programme': student.programme.name,
+                'programme_code': student.programme.code,
+                'current_year': student.current_year,
+                'current_semester': student.current_semester,
+                'school': student.programme.school.name,
+            },
+            'enrollments': [
+                {
+                    'id': enrollment.id,
+                    'unit_code': enrollment.unit.code,
+                    'unit_name': enrollment.unit.name,
+                    'credit_hours': enrollment.unit.credit_hours,
+                    'theory_hours': enrollment.unit.theory_hours,
+                    'practical_hours': enrollment.unit.practical_hours,
+                    'clinical_hours': enrollment.unit.clinical_hours,
+                    'unit_type': enrollment.unit.get_unit_type_display(),
+                }
+                for enrollment in enrollments
+            ]
+        }
+        
+        return JsonResponse(data)
+        
+    except Student.DoesNotExist:
+        return JsonResponse({'error': 'Student not found'}, status=404)
