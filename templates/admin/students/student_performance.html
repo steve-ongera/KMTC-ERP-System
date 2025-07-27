@@ -28,7 +28,7 @@
                     <a href="{% url 'student_list' %}" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left"></i> Back
                     </a>
-                    <a href="{% url 'student_detail' student.student_id %}" class="btn btn-outline-primary">
+                    <a href="{% url 'student_detail' student.registration_number %}" class="btn btn-outline-primary">
                         <i class="bi bi-person"></i> Profile
                     </a>
                     <button class="btn btn-outline-success" onclick="window.print()">
@@ -66,12 +66,12 @@
                                 <div class="col-md-4 mb-3">
                                     <label class="small text-muted">Name</label>
                                     <p class="fw-bold">{{ student.user.get_full_name }}</p>
-                                    <label class="small text-muted">Student ID</label>
-                                    <p class="fw-bold">{{ student.student_id }}</p>
+                                    <label class="small text-muted">Registration Number</label>
+                                    <p class="fw-bold">{{ student.registration_number }}</p>
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     <label class="small text-muted">Current Year/Semester</label>
-                                    <p class="fw-bold">{{ student.current_year }}/{{ student.current_semester }}</p>
+                                    <p class="fw-bold">Year {{ student.current_year }}/Semester {{ student.current_semester }}</p>
                                     <label class="small text-muted">Status</label>
                                     <p class="fw-bold">
                                         <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'graduated' %}info{% else %}warning{% endif %}">
@@ -80,10 +80,24 @@
                                     </p>
                                 </div>
                                 <div class="col-md-4 mb-3">
-                                    <label class="small text-muted">Course</label>
-                                    <p class="fw-bold">{{ student.course.name }} ({{ student.course.code }})</p>
-                                    <label class="small text-muted">Department</label>
-                                    <p class="fw-bold">{{ student.course.department.name }}</p>
+                                    <label class="small text-muted">Programme</label>
+                                    <p class="fw-bold">{{ student.programme.name }} ({{ student.programme.code }})</p>
+                                    <label class="small text-muted">School</label>
+                                    <p class="fw-bold">{{ student.programme.school.name }}</p>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="small text-muted">Admission Date</label>
+                                    <p class="fw-bold">{{ student.admission_date|date:"M d, Y" }}</p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="small text-muted">Sponsor Type</label>
+                                    <p class="fw-bold">{{ student.get_sponsor_type_display }}</p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="small text-muted">Programme Type</label>
+                                    <p class="fw-bold">{{ student.programme.get_programme_type_display }}</p>
                                 </div>
                             </div>
                         </div>
@@ -112,8 +126,8 @@
                         </li>
                         {% for year_data in academic_data %}
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="year{{ year_data.academic_year.year }}-tab" data-bs-toggle="tab" data-bs-target="#year{{ year_data.academic_year.year }}" type="button" role="tab">
-                                Year {{ year_data.academic_year.year }}
+                            <button class="nav-link" id="year{{ year_data.academic_year.year|slugify }}-tab" data-bs-toggle="tab" data-bs-target="#year{{ year_data.academic_year.year|slugify }}" type="button" role="tab">
+                                {{ year_data.academic_year.year }}
                             </button>
                         </li>
                         {% endfor %}
@@ -127,13 +141,13 @@
                                 <div class="col-md-3 text-center mb-4">
                                     <div class="p-3 border rounded bg-light h-100">
                                         <h3 class="text-primary">{{ overall_stats.passed_subjects }}/{{ overall_stats.total_subjects }}</h3>
-                                        <p class="mb-0 text-muted">Subjects Passed</p>
+                                        <p class="mb-0 text-muted">Units Passed</p>
                                     </div>
                                 </div>
                                 <div class="col-md-3 text-center mb-4">
                                     <div class="p-3 border rounded bg-light h-100">
                                         <h3 class="text-primary">{{ overall_stats.earned_credits }}/{{ overall_stats.total_credits }}</h3>
-                                        <p class="mb-0 text-muted">Credits Earned</p>
+                                        <p class="mb-0 text-muted">Credit Hours Earned</p>
                                     </div>
                                 </div>
                                 <div class="col-md-3 text-center mb-4">
@@ -145,7 +159,7 @@
                                 <div class="col-md-3 text-center mb-4">
                                     <div class="p-3 border rounded bg-light h-100">
                                         <h3 class="text-primary">{{ overall_stats.completion_percentage }}%</h3>
-                                        <p class="mb-0 text-muted">Program Completion</p>
+                                        <p class="mb-0 text-muted">Programme Completion</p>
                                     </div>
                                 </div>
                             </div>
@@ -165,7 +179,7 @@
                         
                         <!-- Year Tabs -->
                         {% for year_data in academic_data %}
-                        <div class="tab-pane fade" id="year{{ year_data.academic_year.year }}" role="tabpanel">
+                        <div class="tab-pane fade" id="year{{ year_data.academic_year.year|slugify }}" role="tabpanel">
                             <h5 class="mb-4">Academic Year {{ year_data.academic_year.year }}</h5>
                             
                             {% for semester_data in year_data.semesters %}
@@ -185,7 +199,7 @@
                                 
                                 <div class="row mb-3">
                                     <div class="col-md-3">
-                                        <span class="small text-muted">Subjects Taken:</span>
+                                        <span class="small text-muted">Units Taken:</span>
                                         <span class="fw-bold">{{ semester_data.stats.total_subjects }}</span>
                                     </div>
                                     <div class="col-md-3">
@@ -197,7 +211,7 @@
                                         <span class="fw-bold text-danger">{{ semester_data.stats.failed_subjects }}</span>
                                     </div>
                                     <div class="col-md-3">
-                                        <span class="small text-muted">Credits:</span>
+                                        <span class="small text-muted">Credit Hours:</span>
                                         <span class="fw-bold">{{ semester_data.stats.earned_credits }}/{{ semester_data.stats.total_credits }}</span>
                                     </div>
                                 </div>
@@ -207,10 +221,13 @@
                                         <thead class="table-light">
                                             <tr>
                                                 <th>Code</th>
-                                                <th>Subject</th>
+                                                <th>Unit Name</th>
                                                 <th>Credits</th>
                                                 <th>Theory</th>
                                                 <th>Practical</th>
+                                                <th>Clinical</th>
+                                                <th>CA</th>
+                                                <th>Final</th>
                                                 <th>Total</th>
                                                 <th>Grade</th>
                                                 <th>Points</th>
@@ -219,20 +236,35 @@
                                         </thead>
                                         <tbody>
                                             {% for subject_data in semester_data.subjects %}
-                                            <tr class="{% if subject_data.is_passed %}table-success{% else %}table-danger{% endif %}">
+                                            <tr class="{% if subject_data.is_passed %}table-success{% elif subject_data.grade %}table-danger{% endif %}">
                                                 <td>{{ subject_data.subject.code }}</td>
                                                 <td>{{ subject_data.subject.name }}</td>
-                                                <td>{{ subject_data.subject.credits }}</td>
+                                                <td>{{ subject_data.subject.credit_hours }}</td>
                                                 <td>{{ subject_data.theory_marks|default:"-" }}</td>
                                                 <td>{{ subject_data.practical_marks|default:"-" }}</td>
+                                                <td>{{ subject_data.clinical_marks|default:"-" }}</td>
+                                                <td>{{ subject_data.continuous_assessment|default:"-" }}</td>
+                                                <td>{{ subject_data.final_exam_marks|default:"-" }}</td>
                                                 <td>{{ subject_data.total_marks|default:"-" }}</td>
-                                                <td>{{ subject_data.grade|default:"-" }}</td>
+                                                <td>
+                                                    {% if subject_data.grade %}
+                                                        <span class="badge {% if subject_data.is_passed %}bg-success{% else %}bg-danger{% endif %}">
+                                                            {{ subject_data.grade }}
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">Pending</span>
+                                                    {% endif %}
+                                                </td>
                                                 <td>{{ subject_data.grade_points|default:"-" }}</td>
                                                 <td>
-                                                    {% if subject_data.is_passed %}
-                                                        <span class="badge bg-success">Passed</span>
+                                                    {% if subject_data.grade %}
+                                                        {% if subject_data.is_passed %}
+                                                            <span class="badge bg-success">Passed</span>
+                                                        {% else %}
+                                                            <span class="badge bg-danger">Failed</span>
+                                                        {% endif %}
                                                     {% else %}
-                                                        <span class="badge bg-danger">Failed</span>
+                                                        <span class="badge bg-warning">Not Graded</span>
                                                     {% endif %}
                                                 </td>
                                             </tr>
@@ -240,6 +272,16 @@
                                         </tbody>
                                     </table>
                                 </div>
+                                
+                                {% if semester_data.subjects %}
+                                    {% for subject_data in semester_data.subjects %}
+                                        {% if subject_data.remarks %}
+                                            <div class="alert alert-info mt-2">
+                                                <strong>{{ subject_data.subject.code }} Remarks:</strong> {{ subject_data.remarks }}
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
                             </div>
                             {% endfor %}
                         </div>
@@ -256,7 +298,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Activate the first tab if none is active
     if (window.location.hash) {
         const tabTrigger = new bootstrap.Tab(document.querySelector(`[data-bs-target="${window.location.hash}"]`));
-        tabTrigger.show();
+        if (tabTrigger) {
+            tabTrigger.show();
+        }
     }
     
     // Update URL hash when tabs are shown
@@ -298,6 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
 .card-header {
     border-radius: 8px 8px 0 0 !important;
     padding: 1rem 1.25rem;
+    background-color: #9d0101 !important;
 }
 
 .card-title {
@@ -306,7 +351,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .card-stitle {
     font-size: 1.25rem;
-    color: #3639A4;
+    color: #9d0101;
 }
 
 .profile-picture {
@@ -327,6 +372,10 @@ document.addEventListener('DOMContentLoaded', function() {
     border-radius: 8px;
 }
 
+.nav-tabs {
+    border-bottom: 2px solid #dee2e6;
+}
+
 .nav-tabs .nav-link {
     font-weight: 500;
     border: none;
@@ -335,13 +384,13 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 .nav-tabs .nav-link.active {
-    color: #3639A4;
+    color: #9d0101;
     background-color: transparent;
-    border-bottom: 3px solid #3639A4;
+    border-bottom: 3px solid #9d0101;
 }
 
 .nav-tabs .nav-link:hover:not(.active) {
-    color: #3639A4;
+    color: #9d0101;
     border-bottom: 3px solid #dee2e6;
 }
 
@@ -370,6 +419,36 @@ document.addEventListener('DOMContentLoaded', function() {
     padding: 5px 10px;
 }
 
+.text-primary {
+    color: #9d0101 !important;
+}
+
+.btn-primary {
+    background-color: #9d0101;
+    border-color: #9d0101;
+}
+
+.btn-primary:hover {
+    background-color: #7a0101;
+    border-color: #7a0101;
+}
+
+.btn-outline-primary {
+    color: #9d0101;
+    border-color: #9d0101;
+}
+
+.btn-outline-primary:hover {
+    background-color: #9d0101;
+    color: white;
+}
+
+.alert-primary {
+    background-color: rgba(157, 1, 1, 0.1);
+    border-color: rgba(157, 1, 1, 0.2);
+    color: #9d0101;
+}
+
 @media (max-width: 768px) {
     .profile-picture, .profile-picture-placeholder {
         width: 100px;
@@ -388,6 +467,24 @@ document.addEventListener('DOMContentLoaded', function() {
     
     .table-responsive {
         font-size: 0.85rem;
+    }
+}
+
+@media print {
+    .dashboardRightLabel,
+    .nav-tabs,
+    .tab-content .tab-pane:not(.active) {
+        display: none !important;
+    }
+    
+    .tab-content .tab-pane.active {
+        display: block !important;
+    }
+    
+    .onprintContainer {
+        box-shadow: none;
+        margin: 0;
+        padding: 0;
     }
 }
 </style>
