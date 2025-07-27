@@ -842,3 +842,317 @@ def admin_logout_view(request):
     messages.success(request, 'You have been successfully logged out.')
     logger.info(f"Admin logout for user: {username}")
     return redirect('admin_login')
+
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db.models import Count, Q, Sum, Avg
+from django.utils import timezone
+from datetime import datetime, timedelta
+from django.db.models.functions import TruncMonth, TruncYear
+import json
+from collections import defaultdict
+
+from .models import (
+    User, Student, Instructor, Staff, School, Programme, Unit, 
+    AcademicYear, Semester, Enrollment, Grade, FeePayment, 
+    ClinicalPlacement, Attendance, StudentReporting, FeeStructure
+)
+
+
+def is_admin(user):
+    """Check if user is admin"""
+    return user.is_authenticated and user.user_type == 'admin'
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_dashboard(request):
+    """
+    Admin dashboard with comprehensive statistics and charts
+    """
+    # Get current date and academic year
+    current_date = timezone.now().date()
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Basic User Statistics
+    total_users = User.objects.count()
+    active_users = User.objects.filter(is_active=True).count()
+    new_users_today = User.objects.filter(created_at__date=current_date).count()
+    
+    # Student Statistics
+    total_students = Student.objects.count()
+    active_students = Student.objects.filter(status='active').count()
+    new_students_today = Student.objects.filter(
+        user__created_at__date=current_date
+    ).count()
+    
+    # Faculty Statistics
+    total_faculty = Instructor.objects.count()
+    active_faculty = Instructor.objects.filter(is_active=True).count()
+    
+    # Staff Statistics
+    total_staff = Staff.objects.count()
+    active_staff = Staff.objects.filter(is_active=True).count()
+    
+    # Academic Overview
+    total_schools = School.objects.filter(is_active=True).count()
+    total_programmes = Programme.objects.filter(is_active=True).count()
+    total_units = Unit.objects.filter(is_active=True).count()
+    
+    # Financial Overview
+    total_fee_payments = FeePayment.objects.filter(
+        payment_status='completed'
+    ).count()
+    today_fee_payments = FeePayment.objects.filter(
+        payment_date=current_date,
+        payment_status='completed'
+    ).count()
+    
+    # Recent payments (last 10)
+    recent_payments = FeePayment.objects.filter(
+        payment_status='completed'
+    ).select_related('student__user').order_by('-payment_date')[:10]
+    
+    # Gender Distribution Data for Donut Chart
+    gender_data = Student.objects.filter(status='active').values(
+        'user__gender'
+    ).annotate(count=Count('id'))
+    
+    gender_chart_data = {
+        'labels': [],
+        'data': [],
+        'colors': ['#FF6384', '#36A2EB', '#FFCE56']
+    }
+    
+    for item in gender_data:
+        gender = item['user__gender']
+        if gender == 'male':
+            gender_chart_data['labels'].append('Male')
+            gender_chart_data['data'].append(item['count'])
+        elif gender == 'female':
+            gender_chart_data['labels'].append('Female')
+            gender_chart_data['data'].append(item['count'])
+        elif gender == 'other':
+            gender_chart_data['labels'].append('Other')
+            gender_chart_data['data'].append(item['count'])
+    
+    # Student Admission Trends (Bar Chart) - Last 5 years
+    current_year = current_date.year
+    admission_years = []
+    admission_counts = []
+    
+    for year in range(current_year - 4, current_year + 1):
+        year_start = datetime(year, 1, 1).date()
+        year_end = datetime(year, 12, 31).date()
+        count = Student.objects.filter(
+            admission_date__range=[year_start, year_end]
+        ).count()
+        admission_years.append(str(year))
+        admission_counts.append(count)
+    
+    admission_trend_data = {
+        'labels': admission_years,
+        'data': admission_counts
+    }
+    
+    # Student Enrollment by Programme (Line Chart)
+    programme_enrollment = Programme.objects.filter(
+        is_active=True
+    ).annotate(
+        student_count=Count('students', filter=Q(students__status='active'))
+    ).order_by('-student_count')[:10]
+    
+    programme_chart_data = {
+        'labels': [p.name[:20] + '...' if len(p.name) > 20 else p.name 
+                  for p in programme_enrollment],
+        'data': [p.student_count for p in programme_enrollment]
+    }
+    
+    # Student Reporting in Last 6 Semesters
+    last_6_semesters = Semester.objects.order_by('-academic_year__start_date', '-semester_number')[:6]
+    reporting_data = []
+    
+    for semester in last_6_semesters:
+        total_expected = Student.objects.filter(status='active').count()
+        reported = StudentReporting.objects.filter(
+            semester=semester,
+            status='approved'
+        ).count()
+        
+        reporting_data.append({
+            'semester': f"{semester.academic_year.year} S{semester.semester_number}",
+            'reported': reported,
+            'expected': total_expected,
+            'percentage': round((reported/total_expected * 100) if total_expected > 0 else 0, 1)
+        })
+    
+    reporting_chart_data = {
+        'labels': [item['semester'] for item in reversed(reporting_data)],
+        'reported': [item['reported'] for item in reversed(reporting_data)],
+        'expected': [item['expected'] for item in reversed(reporting_data)],
+        'percentages': [item['percentage'] for item in reversed(reporting_data)]
+    }
+    
+    # Fee Collection Trends (Last 12 months)
+    twelve_months_ago = current_date - timedelta(days=365)
+    monthly_collections = FeePayment.objects.filter(
+        payment_date__gte=twelve_months_ago,
+        payment_status='completed'
+    ).extra(
+        select={'month': "strftime('%%Y-%%m', payment_date)"}
+    ).values('month').annotate(
+        total_amount=Sum('amount_paid'),
+        payment_count=Count('id')
+    ).order_by('month')
+    
+    collection_labels = []
+    collection_amounts = []
+    collection_counts = []
+    
+    for collection in monthly_collections:
+        month_year = datetime.strptime(collection['month'], '%Y-%m')
+        collection_labels.append(month_year.strftime('%b %Y'))
+        collection_amounts.append(float(collection['total_amount'] or 0))
+        collection_counts.append(collection['payment_count'])
+    
+    collection_chart_data = {
+        'labels': collection_labels,
+        'amounts': collection_amounts,
+        'counts': collection_counts
+    }
+    
+    # Attendance Summary
+    if current_semester:
+        attendance_summary = Attendance.objects.filter(
+            date__gte=current_semester.start_date,
+            date__lte=current_semester.end_date
+        ).values('status').annotate(count=Count('id'))
+    else:
+        attendance_summary = []
+    
+    # Programme Performance (Average GPA by Programme)
+    programme_performance = []
+    for programme in Programme.objects.filter(is_active=True)[:10]:
+        avg_gpa = Grade.objects.filter(
+            enrollment__student__programme=programme,
+            is_passed=True
+        ).aggregate(avg_gpa=Avg('grade_points'))['avg_gpa']
+        
+        if avg_gpa:
+            programme_performance.append({
+                'programme': programme.name[:20] + '...' if len(programme.name) > 20 else programme.name,
+                'avg_gpa': round(avg_gpa, 2)
+            })
+    
+    programme_performance.sort(key=lambda x: x['avg_gpa'], reverse=True)
+    
+    performance_chart_data = {
+        'labels': [item['programme'] for item in programme_performance],
+        'data': [item['avg_gpa'] for item in programme_performance]
+    }
+    
+    # Clinical Placements Summary
+    active_placements = ClinicalPlacement.objects.filter(
+        start_date__lte=current_date,
+        end_date__gte=current_date
+    ).count()
+    
+    completed_placements = ClinicalPlacement.objects.filter(
+        is_completed=True
+    ).count()
+    
+    # Recent Activities (Student Registrations, Payments, etc.)
+    recent_activities = []
+    
+    # Recent student registrations
+    recent_students = Student.objects.select_related('user', 'programme').order_by('-user__created_at')[:5]
+    for student in recent_students:
+        recent_activities.append({
+            'type': 'student_registration',
+            'message': f"New student {student.user.get_full_name()} registered for {student.programme.name}",
+            'date': student.user.created_at,
+            'icon': 'fa-user-plus',
+            'color': 'success'
+        })
+    
+    # Recent payments
+    recent_fee_payments = FeePayment.objects.select_related('student__user').order_by('-payment_date')[:5]
+    for payment in recent_fee_payments:
+        recent_activities.append({
+            'type': 'fee_payment',
+            'message': f"Fee payment of KES {payment.amount_paid} received from {payment.student.user.get_full_name()}",
+            'date': payment.payment_date,
+            'icon': 'fa-money-bill',
+            'color': 'info'
+        })
+    
+    # Sort activities by date
+    recent_activities.sort(key=lambda x: x['date'], reverse=True)
+    recent_activities = recent_activities[:10]
+    
+    # Top Performing Students (by GPA)
+    top_students = []
+    for student in Student.objects.filter(status='active')[:20]:
+        avg_gpa = Grade.objects.filter(
+            enrollment__student=student,
+            is_passed=True
+        ).aggregate(avg_gpa=Avg('grade_points'))['avg_gpa']
+        
+        if avg_gpa and avg_gpa > 0:
+            top_students.append({
+                'student': student,
+                'gpa': round(avg_gpa, 2)
+            })
+    
+    top_students.sort(key=lambda x: x['gpa'], reverse=True)
+    top_students = top_students[:10]
+    
+    context = {
+        'current_date': current_date,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        
+        # Basic Statistics
+        'total_users': total_users,
+        'active_users': active_users,
+        'new_users_today': new_users_today,
+        'total_students': total_students,
+        'active_students': active_students,
+        'new_students_today': new_students_today,
+        'total_faculty': total_faculty,
+        'active_faculty': active_faculty,
+        'total_staff': total_staff,
+        'active_staff': active_staff,
+        
+        # Academic Overview
+        'total_schools': total_schools,
+        'total_programmes': total_programmes,
+        'total_units': total_units,
+        
+        # Financial Overview
+        'total_fee_payments': total_fee_payments,
+        'today_fee_payments': today_fee_payments,
+        'recent_payments': recent_payments,
+        
+        # Clinical Overview
+        'active_placements': active_placements,
+        'completed_placements': completed_placements,
+        
+        # Chart Data (JSON)
+        'gender_chart_data': json.dumps(gender_chart_data),
+        'admission_trend_data': json.dumps(admission_trend_data),
+        'programme_chart_data': json.dumps(programme_chart_data),
+        'reporting_chart_data': json.dumps(reporting_chart_data),
+        'collection_chart_data': json.dumps(collection_chart_data),
+        'performance_chart_data': json.dumps(performance_chart_data),
+        
+        # Additional Data
+        'attendance_summary': attendance_summary,
+        'recent_activities': recent_activities,
+        'top_students': top_students,
+        'programme_performance': programme_performance,
+        'reporting_data': reporting_data,
+    }
+    
+    return render(request, 'admin/dashboard.html', context)
