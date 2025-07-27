@@ -579,7 +579,7 @@ def bed_list(request, room_id):
         
     except Student.DoesNotExist:
         messages.error(request, "Student profile not found.")
-        return redirect('dashboard')
+        return redirect('student_dashboard')
 
 
 @login_required
@@ -666,7 +666,7 @@ def hostel_booking_detail(request, booking_id):
         
     except Student.DoesNotExist:
         messages.error(request, "Student profile not found.")
-        return redirect('dashboard')
+        return redirect('student_dashboard')
 
 
 @login_required
@@ -699,7 +699,7 @@ def cancel_booking(request, booking_id):
         
     except Student.DoesNotExist:
         messages.error(request, "Student profile not found.")
-        return redirect('dashboard')
+        return redirect('student_dashboard')
 
 
 # AJAX Views
