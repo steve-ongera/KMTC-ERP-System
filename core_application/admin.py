@@ -9,7 +9,7 @@ from .models import *
 # Custom User Admin
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('username', 'email', 'first_name', 'last_name', 'user_type', 'is_active', 'date_joined')
+    list_display = ('username', 'email', 'first_name', 'last_name', 'user_type', 'gender', 'is_active', 'date_joined')
     list_filter = ('user_type', 'is_active', 'is_staff', 'date_joined', 'gender')
     search_fields = ('username', 'first_name', 'last_name', 'email', 'national_id', 'phone')
     readonly_fields = ('date_joined', 'last_login')
