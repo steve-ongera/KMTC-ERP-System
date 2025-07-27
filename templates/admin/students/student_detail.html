@@ -76,7 +76,7 @@
                     <div class="quick-info text-start">
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-muted">Course:</span>
-                            <span class="fw-bold">{{ student.course.name }}</span>
+                            <span class="fw-bold">{{ student.programme.name }}</span>
                         </div>
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-muted">Year/Semester:</span>
@@ -84,7 +84,7 @@
                         </div>
                         <div class="d-flex justify-content-between">
                             <span class="text-muted">Department:</span>
-                            <span class="fw-bold">{{ student.course.department.name }}</span>
+                            <span class="fw-bold">{{ student.programme.department.name }}</span>
                         </div>
                     </div>
                     
@@ -156,15 +156,15 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="small text-muted">Course</label>
-                            <p class="fw-bold">{{ student.course.name }} ({{ student.course.code }})</p>
+                            <p class="fw-bold">{{ student.programme.name }} ({{ student.programme.code }})</p>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="small text-muted">Department</label>
-                            <p class="fw-bold">{{ student.course.department.name }}</p>
+                            <p class="fw-bold">{{ student.programme.department.name }}</p>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="small text-muted">Course Type</label>
-                            <p class="fw-bold">{{ student.course.get_course_type_display }}</p>
+                            <label class="small text-muted">programme Type</label>
+                            <p class="fw-bold">{{ student.programme.get_programme_type_display }}</p>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="small text-muted">Current Year</label>
@@ -318,6 +318,7 @@ document.addEventListener('DOMContentLoaded', function() {
 .card-header {
     border-radius: 8px 8px 0 0 !important;
     padding: 1rem 1.25rem;
+    background-color: #9d0101 !important;
 }
 
 .card-title {
@@ -337,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .card-stitle {
     font-size: 1.25rem;
-    color: #3639A4;
+    color: #9d0101;
 }
 
 .profile-picture-container {
@@ -386,7 +387,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .modal-confirm .icon-box {
     background-color: #f8d7da;
-    color: #dc3545;
+    color: #9d0101;
 }
 
 .modal-confirm .modal-header {
@@ -415,6 +416,28 @@ document.addEventListener('DOMContentLoaded', function() {
     padding: 5px 10px;
 }
 
+/* Primary button styling */
+.btn-primary {
+    background-color: #9d0101;
+    border-color: #9d0101;
+}
+
+.btn-primary:hover {
+    background-color: #7a0101;
+    border-color: #7a0101;
+}
+
+.btn-outline-primary {
+    color: #9d0101;
+    border-color: #9d0101;
+}
+
+.btn-outline-primary:hover {
+    background-color: #9d0101;
+    border-color: #9d0101;
+    color: white;
+}
+
 .btn-outline-info {
     border-color: #0dcaf0;
     color: #0dcaf0;
@@ -423,6 +446,23 @@ document.addEventListener('DOMContentLoaded', function() {
 .btn-outline-info:hover {
     background-color: #0dcaf0;
     color: white;
+}
+
+/* Alert styling */
+.alert-primary {
+    background-color: rgba(157, 1, 1, 0.1);
+    border-color: rgba(157, 1, 1, 0.2);
+    color: #9d0101;
+}
+
+/* Hover effects */
+.btn-primary:hover, .btn-outline-primary:hover {
+    box-shadow: 0 4px 8px rgba(157, 1, 1, 0.2);
+}
+
+/* Focus states */
+.btn-primary:focus, .btn-outline-primary:focus {
+    box-shadow: 0 0 0 0.25rem rgba(157, 1, 1, 0.25);
 }
 
 @media (max-width: 768px) {
