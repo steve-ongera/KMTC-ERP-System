@@ -20,6 +20,9 @@
         <div class="row d-flex flex-row">
             <div class="col-md-8">
                 <p class="fw-bold card-stitle text-start">Student Management</p>
+                <small class="text-muted">
+                    Total: {{ total_students }} | Active: {{ active_students }} | Graduated: {{ graduated_students }}
+                </small>
             </div>
             <div class="col-md-4 dashboardRightLabel">
                 <div class="">
@@ -35,11 +38,16 @@
     <div class="row p-3">
         <div class="card shadow-sm p-3">
             <form method="GET" class="row g-3">
+                <!-- Search -->
                 <div class="col-md-4">
-                    <input type="text" class="form-control" name="search" value="{{ search_query }}" placeholder="Search students...">
+                    <label class="form-label small">Search Students</label>
+                    <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                           placeholder="Name, ID, email, programme...">
                 </div>
                 
-                <div class="col-md-3">
+                <!-- Status Filter -->
+                <div class="col-md-2">
+                    <label class="form-label small">Status</label>
                     <select class="form-select" name="status">
                         <option value="">All Status</option>
                         {% for status_code, status_name in status_choices %}
@@ -50,23 +58,98 @@
                     </select>
                 </div>
                 
+                <!-- School Filter -->
                 <div class="col-md-3">
-                    <select class="form-select" name="course">
-                        <option value="">All Courses</option>
-                        {% for course in courses %}
-                            <option value="{{ course.id }}" {% if course.id|stringformat:"s" == course_filter %}selected{% endif %}>
-                                {{ course.name }}
+                    <label class="form-label small">School</label>
+                    <select class="form-select" name="school" id="schoolFilter">
+                        <option value="">All Schools</option>
+                        {% for school in schools %}
+                            <option value="{{ school.id }}" {% if school.id|stringformat:"s" == school_filter %}selected{% endif %}>
+                                {{ school.name }}
                             </option>
                         {% endfor %}
                     </select>
                 </div>
                 
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary w-100">Search</button>
+                <!-- Programme Filter -->
+                <div class="col-md-3">
+                    <label class="form-label small">Programme</label>
+                    <select class="form-select" name="programme" id="programmeFilter">
+                        <option value="">All Programmes</option>
+                        {% for programme in programmes %}
+                            <option value="{{ programme.id }}" {% if programme.id|stringformat:"s" == programme_filter %}selected{% endif %}>
+                                {{ programme.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
                 </div>
                 
-                <div class="col-md-12">
-                    <a href="{% url 'student_list' %}" class="btn btn-outline-secondary">Clear Filters</a>
+                <!-- Year Filter -->
+                <div class="col-md-2">
+                    <label class="form-label small">Year</label>
+                    <select class="form-select" name="year">
+                        <option value="">All Years</option>
+                        {% for year_code, year_name in year_choices %}
+                            <option value="{{ year_code }}" {% if year_code|stringformat:"s" == year_filter %}selected{% endif %}>
+                                {{ year_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Semester Filter -->
+                <div class="col-md-2">
+                    <label class="form-label small">Semester</label>
+                    <select class="form-select" name="semester">
+                        <option value="">All Semesters</option>
+                        {% for semester_code, semester_name in semester_choices %}
+                            <option value="{{ semester_code }}" {% if semester_code|stringformat:"s" == semester_filter %}selected{% endif %}>
+                                {{ semester_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Admission Type Filter -->
+                <div class="col-md-2">
+                    <label class="form-label small">Admission Type</label>
+                    <select class="form-select" name="admission_type">
+                        <option value="">All Types</option>
+                        {% for admission_code, admission_name in admission_type_choices %}
+                            <option value="{{ admission_code }}" {% if admission_code == admission_type_filter %}selected{% endif %}>
+                                {{ admission_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Sponsor Type Filter -->
+                <div class="col-md-2">
+                    <label class="form-label small">Sponsor</label>
+                    <select class="form-select" name="sponsor_type">
+                        <option value="">All Sponsors</option>
+                        {% for sponsor_code, sponsor_name in sponsor_type_choices %}
+                            <option value="{{ sponsor_code }}" {% if sponsor_code == sponsor_type_filter %}selected{% endif %}>
+                                {{ sponsor_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="col-md-4">
+                    <label class="form-label small">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                        <a href="{% url 'student_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise"></i> Clear
+                        </a>
+                        <button type="button" class="btn btn-outline-success" onclick="exportStudents()">
+                            <i class="bi bi-download"></i> Export
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -81,9 +164,11 @@
                         <table class="table table-hover">
                             <thead class="thead-light">
                                 <tr>
-                                    <th>Student ID</th>
+                                    <th>Photo</th>
+                                    <th>Registration No.</th>
                                     <th>Name</th>
-                                    <th>Course</th>
+                                    <th>Programme</th>
+                                    <th>School</th>
                                     <th>Year/Semester</th>
                                     <th>Status</th>
                                     <th>Admission Date</th>
@@ -93,33 +178,78 @@
                             <tbody>
                                 {% for student in students %}
                                 <tr>
-                                    <td>{{ student.student_id }}</td>
-                                    <td>{{ student.user.get_full_name }}</td>
-                                    <td>{{ student.course.name }}</td>
-                                    <td>Year {{ student.current_year }}, Sem {{ student.current_semester }}</td>
                                     <td>
-                                        <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'suspended' %}warning{% else %}danger{% endif %}">
+                                        {% if student.user.profile_picture %}
+                                            <img src="{{ student.user.profile_picture.url }}" 
+                                                 class="rounded-circle" width="40" height="40" 
+                                                 alt="Profile">
+                                        {% else %}
+                                            <div class="bg-secondary rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                                 style="width: 40px; height: 40px;">
+                                                <i class="bi bi-person text-white"></i>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="fw-bold">{{ student.registration_number }}</td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ student.user.get_full_name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ student.user.email|default:"No email" }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ student.programme.name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ student.programme.code }}</small>
+                                        </div>
+                                    </td>
+                                    <td>{{ student.programme.school.name }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">Y{{ student.current_year }}</span>
+                                        <span class="badge bg-secondary">S{{ student.current_semester }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'suspended' %}warning text-dark{% elif student.status == 'graduated' %}info{% else %}danger{% endif %}">
                                             {{ student.get_status_display }}
                                         </span>
                                     </td>
                                     <td>{{ student.admission_date|date:"M d, Y" }}</td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="{% url 'student_detail' student.student_id %}" class="btn btn-sm btn-outline-primary">
+                                            <a href="{% url 'student_detail' student.registration_number %}" 
+                                               class="btn btn-sm btn-outline-primary" title="View Details">
                                                 <i class="bi bi-eye"></i>
                                             </a>
-                                            <a href="{% url 'student_update' student.student_id %}" class="btn btn-sm btn-outline-secondary">
+                                            <a href="{% url 'student_update' student.registration_number %}" 
+                                               class="btn btn-sm btn-outline-secondary" title="Edit">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
-                                            <a href="{% url 'student_delete' student.student_id %}" class="btn btn-sm btn-outline-danger">
-                                                <i class="bi bi-trash"></i>
+                                            <a href="{% url 'student_performance' student.registration_number %}" 
+                                               class="btn btn-sm btn-outline-info" title="Performance">
+                                                <i class="bi bi-graph-up"></i>
                                             </a>
+                                            <button class="btn btn-sm btn-outline-danger delete-student" 
+                                                    data-url="{% url 'student_delete' student.registration_number %}"
+                                                    data-name="{{ student.user.get_full_name }}" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="7" class="text-center py-4">No students found.</td>
+                                    <td colspan="9" class="text-center py-4">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <i class="bi bi-person-x text-muted" style="font-size: 3rem;"></i>
+                                            <h5 class="text-muted mt-2">No students found</h5>
+                                            <p class="text-muted">Try adjusting your search criteria or add new students.</p>
+                                            <a href="{% url 'student_create' %}" class="btn btn-primary">
+                                                <i class="bi bi-plus-circle"></i> Add First Student
+                                            </a>
+                                        </div>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -138,12 +268,12 @@
                 <ul class="pagination justify-content-center">
                     {% if students.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}" aria-label="First">
+                            <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}{% if admission_type_filter %}&admission_type={{ admission_type_filter }}{% endif %}{% if sponsor_type_filter %}&sponsor_type={{ sponsor_type_filter }}{% endif %}" aria-label="First">
                                 <span aria-hidden="true">&laquo;&laquo;</span>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ students.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}" aria-label="Previous">
+                            <a class="page-link" href="?page={{ students.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}{% if admission_type_filter %}&admission_type={{ admission_type_filter }}{% endif %}{% if sponsor_type_filter %}&sponsor_type={{ sponsor_type_filter }}{% endif %}" aria-label="Previous">
                                 <span aria-hidden="true">&laquo;</span>
                             </a>
                         </li>
@@ -154,19 +284,19 @@
                             <li class="page-item active"><span class="page-link">{{ i }}</span></li>
                         {% elif i > students.number|add:'-3' and i < students.number|add:'3' %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}">{{ i }}</a>
+                                <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}{% if admission_type_filter %}&admission_type={{ admission_type_filter }}{% endif %}{% if sponsor_type_filter %}&sponsor_type={{ sponsor_type_filter }}{% endif %}">{{ i }}</a>
                             </li>
                         {% endif %}
                     {% endfor %}
                     
                     {% if students.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ students.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}" aria-label="Next">
+                            <a class="page-link" href="?page={{ students.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}{% if admission_type_filter %}&admission_type={{ admission_type_filter }}{% endif %}{% if sponsor_type_filter %}&sponsor_type={{ sponsor_type_filter }}{% endif %}" aria-label="Next">
                                 <span aria-hidden="true">&raquo;</span>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ students.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}" aria-label="Last">
+                            <a class="page-link" href="?page={{ students.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}{% if admission_type_filter %}&admission_type={{ admission_type_filter }}{% endif %}{% if sponsor_type_filter %}&sponsor_type={{ sponsor_type_filter }}{% endif %}" aria-label="Last">
                                 <span aria-hidden="true">&raquo;&raquo;</span>
                             </a>
                         </li>
@@ -192,7 +322,7 @@
                 <h4 class="modal-title fw-bold">Are you sure?</h4>
             </div>
             <div class="modal-body text-center">
-                <p>Do you really want to delete this student record? This process cannot be undone.</p>
+                <p>Do you really want to delete <strong id="studentName"></strong>? This process cannot be undone.</p>
             </div>
             <div class="modal-footer justify-content-center">
                 <button type="button" class="btn btn-lg btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -205,37 +335,6 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Delete confirmation modal handling
-    const deleteButtons = document.querySelectorAll('.btn-outline-danger');
-    const deleteForm = document.getElementById('deleteForm');
-    
-    deleteButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
-            e.preventDefault();
-            const deleteUrl = this.getAttribute('href');
-            deleteForm.setAttribute('action', deleteUrl);
-            
-            const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-            modal.show();
-        });
-    });
-    
-    // Status badge colors
-    const statusBadges = document.querySelectorAll('.badge');
-    statusBadges.forEach(badge => {
-        const status = badge.textContent.trim().toLowerCase();
-        if (status === 'active') {
-            badge.classList.add('bg-success');
-        } else if (status === 'suspended') {
-            badge.classList.add('bg-warning', 'text-dark');
-        } else {
-            badge.classList.add('bg-danger');
-        }
-    });
-});
-</script>
 
 <style>
 .icon-box {

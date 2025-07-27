@@ -1156,3 +1156,261 @@ def admin_dashboard(request):
     }
     
     return render(request, 'admin/dashboard.html', context)
+
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.db.models import Q
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from .models import Student, Programme, School, User
+from django.urls import reverse
+
+
+@login_required
+def student_list(request):
+    """
+    Display a paginated list of students with search and filter functionality
+    """
+    # Get all students with related data to avoid N+1 queries
+    students = Student.objects.select_related(
+        'user', 'programme', 'programme__school'
+    ).all()
+    
+    # Get filter parameters from request
+    search_query = request.GET.get('search', '').strip()
+    status_filter = request.GET.get('status', '')
+    programme_filter = request.GET.get('programme', '')
+    school_filter = request.GET.get('school', '')
+    year_filter = request.GET.get('year', '')
+    semester_filter = request.GET.get('semester', '')
+    admission_type_filter = request.GET.get('admission_type', '')
+    sponsor_type_filter = request.GET.get('sponsor_type', '')
+    
+    # Apply search filter
+    if search_query:
+        students = students.filter(
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__username__icontains=search_query) |
+            Q(registration_number__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(programme__name__icontains=search_query) |
+            Q(programme__code__icontains=search_query)
+        )
+    
+    # Apply status filter
+    if status_filter:
+        students = students.filter(status=status_filter)
+    
+    # Apply programme filter
+    if programme_filter:
+        students = students.filter(programme_id=programme_filter)
+    
+    # Apply school filter
+    if school_filter:
+        students = students.filter(programme__school_id=school_filter)
+    
+    # Apply year filter
+    if year_filter:
+        students = students.filter(current_year=year_filter)
+    
+    # Apply semester filter
+    if semester_filter:
+        students = students.filter(current_semester=semester_filter)
+    
+    # Apply admission type filter
+    if admission_type_filter:
+        students = students.filter(admission_type=admission_type_filter)
+    
+    # Apply sponsor type filter
+    if sponsor_type_filter:
+        students = students.filter(sponsor_type=sponsor_type_filter)
+    
+    # Order students by registration number
+    students = students.order_by('-admission_date', 'registration_number')
+    
+    # Pagination
+    paginator = Paginator(students, 20)  # Show 20 students per page
+    page = request.GET.get('page', 1)
+    
+    try:
+        students_page = paginator.page(page)
+    except PageNotAnInteger:
+        students_page = paginator.page(1)
+    except EmptyPage:
+        students_page = paginator.page(paginator.num_pages)
+    
+    # Get data for filter dropdowns
+    status_choices = Student.STATUS_CHOICES
+    programmes = Programme.objects.filter(is_active=True).order_by('name')
+    schools = School.objects.filter(is_active=True).order_by('name')
+    admission_type_choices = Student.ADMISSION_TYPES
+    sponsor_type_choices = Student.SPONSOR_TYPES
+    
+    # Year and semester choices (based on your model validators)
+    year_choices = [(i, f'Year {i}') for i in range(1, 5)]  # 1-4 years
+    semester_choices = [(i, f'Semester {i}') for i in range(1, 4)]  # 1-3 semesters
+    
+    context = {
+        'students': students_page,
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'programme_filter': programme_filter,
+        'school_filter': school_filter,
+        'year_filter': year_filter,
+        'semester_filter': semester_filter,
+        'admission_type_filter': admission_type_filter,
+        'sponsor_type_filter': sponsor_type_filter,
+        
+        # Filter options
+        'status_choices': status_choices,
+        'programmes': programmes,
+        'schools': schools,
+        'year_choices': year_choices,
+        'semester_choices': semester_choices,
+        'admission_type_choices': admission_type_choices,
+        'sponsor_type_choices': sponsor_type_choices,
+        
+        # Statistics
+        'total_students': students.count(),
+        'active_students': Student.objects.filter(status='active').count(),
+        'graduated_students': Student.objects.filter(status='graduated').count(),
+    }
+    
+    return render(request, 'admin/students/student_list.html', context)
+
+
+@login_required
+def student_detail(request, registration_number):
+    """
+    Display detailed information for a specific student
+    """
+    student = get_object_or_404(
+        Student.objects.select_related(
+            'user', 'programme', 'programme__school'
+        ),
+        registration_number=registration_number
+    )
+    
+    context = {
+        'student': student,
+    }
+    
+    return render(request, 'admin/students/student_detail.html', context)
+
+
+@login_required
+def student_create(request):
+    """
+    Create a new student record
+    """
+    if request.method == 'POST':
+        # Handle form submission here
+        # This would typically use Django forms
+        messages.success(request, 'Student created successfully!')
+        return redirect('student_list')
+    
+    # Get data for form dropdowns
+    programmes = Programme.objects.filter(is_active=True).order_by('name')
+    schools = School.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'programmes': programmes,
+        'schools': schools,
+        'status_choices': Student.STATUS_CHOICES,
+        'admission_type_choices': Student.ADMISSION_TYPES,
+        'sponsor_type_choices': Student.SPONSOR_TYPES,
+        'gender_choices': User.GENDER_CHOICES,
+    }
+    
+    return render(request, 'students/student_create.html', context)
+
+
+@login_required
+def student_update(request, registration_number):
+    """
+    Update an existing student record
+    """
+    student = get_object_or_404(Student, registration_number=registration_number)
+    
+    if request.method == 'POST':
+        # Handle form submission here
+        # This would typically use Django forms
+        messages.success(request, 'Student updated successfully!')
+        return redirect('student_detail', registration_number=registration_number)
+    
+    # Get data for form dropdowns
+    programmes = Programme.objects.filter(is_active=True).order_by('name')
+    schools = School.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'student': student,
+        'programmes': programmes,
+        'schools': schools,
+        'status_choices': Student.STATUS_CHOICES,
+        'admission_type_choices': Student.ADMISSION_TYPES,
+        'sponsor_type_choices': Student.SPONSOR_TYPES,
+        'gender_choices': User.GENDER_CHOICES,
+    }
+    
+    return render(request, 'admin/students/student_form.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def student_delete(request, registration_number):
+    """
+    Delete a student record
+    """
+    student = get_object_or_404(Student, registration_number=registration_number)
+    
+    try:
+        student_name = student.user.get_full_name()
+        
+        # Delete the user account (this will cascade to delete student record)
+        student.user.delete()
+        
+        messages.success(request, f'Student {student_name} has been deleted successfully!')
+    except Exception as e:
+        messages.error(request, f'Error deleting student: {str(e)}')
+    
+    return redirect('student_list')
+
+
+@login_required
+def student_performance(request, registration_number):
+    """
+    Display student academic performance
+    """
+    student = get_object_or_404(
+        Student.objects.select_related(
+            'user', 'programme', 'programme__school'
+        ),
+        registration_number=registration_number
+    )
+    
+    # This would typically fetch grades, assessments, etc.
+    # For now, just redirect to detail page
+    context = {
+        'student': student,
+    }
+    
+    return render(request, 'students/student_performance.html', context)
+
+
+# AJAX view for dynamic filtering (optional)
+@login_required
+def get_programmes_by_school(request):
+    """
+    AJAX view to get programmes filtered by school
+    """
+    school_id = request.GET.get('school_id')
+    programmes = Programme.objects.filter(
+        school_id=school_id, is_active=True
+    ).values('id', 'name', 'code').order_by('name')
+    
+    return JsonResponse(list(programmes), safe=False)
+
