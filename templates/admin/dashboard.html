@@ -434,381 +434,430 @@
     </div>
 </div>
 
-{% endblock %}
-
-{% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Debug: Check if Chart.js is loaded
+    console.log('Chart.js loaded:', typeof Chart !== 'undefined');
+    console.log('Chart version:', Chart?.version);
+    
     // Chart.js default configuration
     Chart.defaults.font.size = 12;
     Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
 
-    // Gender Distribution Donut Chart
+    // Get chart data with validation
     const genderData = {{ gender_chart_data|safe }};
-    const genderCtx = document.getElementById('genderChart').getContext('2d');
-    new Chart(genderCtx, {
-        type: 'doughnut',
-        data: {
-            labels: genderData.labels,
-            datasets: [{
-                data: genderData.data,
-                backgroundColor: genderData.colors,
-                borderWidth: 2,
-                borderColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        padding: 20,
-                        usePointStyle: true
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.raw;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${value} (${percentage}%)`;
+    const admissionData = {{ admission_trend_data|safe }};
+    const programmeData = {{ programme_chart_data|safe }};
+    const reportingData = {{ reporting_chart_data|safe }};
+    const collectionData = {{ collection_chart_data|safe }};
+    const performanceData = {{ performance_chart_data|safe }};
+    
+    console.log('Chart data loaded:', {
+        genderData,
+        admissionData,
+        programmeData,
+        reportingData,
+        collectionData,
+        performanceData
+    });
+
+    // Gender Distribution Donut Chart
+    if (genderData && genderData.labels && genderData.labels.length > 0) {
+        const genderCtx = document.getElementById('genderChart').getContext('2d');
+        new Chart(genderCtx, {
+            type: 'doughnut',
+            data: {
+                labels: genderData.labels,
+                datasets: [{
+                    data: genderData.data,
+                    backgroundColor: genderData.colors || ['#9d0101', '#ff6b6b', '#ffa3a3'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    } else {
+        document.getElementById('genderChart').parentElement.innerHTML = '<p class="text-center text-muted">No gender data available</p>';
+    }
 
     // Student Admissions Trend Bar Chart
-    const admissionData = {{ admission_trend_data|safe }};
-    const admissionCtx = document.getElementById('admissionTrendChart').getContext('2d');
-    new Chart(admissionCtx, {
-        type: 'bar',
-        data: {
-            labels: admissionData.labels,
-            datasets: [{
-                label: 'New Admissions',
-                data: admissionData.data,
-                backgroundColor: 'rgba(54, 162, 235, 0.8)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        precision: 0
-                    }
-                }
+    if (admissionData && admissionData.labels && admissionData.labels.length > 0) {
+        const admissionCtx = document.getElementById('admissionTrendChart').getContext('2d');
+        new Chart(admissionCtx, {
+            type: 'bar',
+            data: {
+                labels: admissionData.labels,
+                datasets: [{
+                    label: 'New Admissions',
+                    data: admissionData.data,
+                    backgroundColor: 'rgba(157, 1, 1, 0.8)',
+                    borderColor: 'rgba(157, 1, 1, 1)',
+                    borderWidth: 1
+                }]
             },
-            plugins: {
-                legend: {
-                    display: false
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
                 },
-                tooltip: {
-                    callbacks: {
-                        title: function(context) {
-                            return `Year: ${context[0].label}`;
-                        },
-                        label: function(context) {
-                            return `New Students: ${context.raw}`;
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                return `Year: ${context[0].label}`;
+                            },
+                            label: function(context) {
+                                return `New Students: ${context.raw}`;
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    } else {
+        document.getElementById('admissionTrendChart').parentElement.innerHTML = '<p class="text-center text-muted">No admission data available</p>';
+    }
 
     // Programme Enrollment Line Chart
-    const programmeData = {{ programme_chart_data|safe }};
-    const programmeCtx = document.getElementById('programmeChart').getContext('2d');
-    new Chart(programmeCtx, {
-        type: 'line',
-        data: {
-            labels: programmeData.labels,
-            datasets: [{
-                label: 'Enrolled Students',
-                data: programmeData.data,
-                borderColor: 'rgba(75, 192, 192, 1)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        precision: 0
+    if (programmeData && programmeData.labels && programmeData.labels.length > 0) {
+        const programmeCtx = document.getElementById('programmeChart').getContext('2d');
+        new Chart(programmeCtx, {
+            type: 'line',
+            data: {
+                labels: programmeData.labels,
+                datasets: [{
+                    label: 'Enrolled Students',
+                    data: programmeData.data,
+                    borderColor: 'rgba(157, 1, 1, 1)',
+                    backgroundColor: 'rgba(157, 1, 1, 0.2)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
                     }
                 },
-                x: {
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 45
+                plugins: {
+                    legend: {
+                        display: false
                     }
                 }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                }
             }
-        }
-    });
+        });
+    } else {
+        document.getElementById('programmeChart').parentElement.innerHTML = '<p class="text-center text-muted">No programme data available</p>';
+    }
 
     // Student Reporting Chart (Last 6 Semesters)
-    const reportingData = {{ reporting_chart_data|safe }};
-    const reportingCtx = document.getElementById('reportingChart').getContext('2d');
-    new Chart(reportingCtx, {
-        type: 'bar',
-        data: {
-            labels: reportingData.labels,
-            datasets: [{
-                label: 'Reported',
-                data: reportingData.reported,
-                backgroundColor: 'rgba(40, 167, 69, 0.8)',
-                borderColor: 'rgba(40, 167, 69, 1)',
-                borderWidth: 1
-            }, {
-                label: 'Expected',
-                data: reportingData.expected,
-                backgroundColor: 'rgba(220, 53, 69, 0.8)',
-                borderColor: 'rgba(220, 53, 69, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        precision: 0
-                    }
-                },
-                x: {
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 45
-                    }
-                }
+    if (reportingData && reportingData.labels && reportingData.labels.length > 0) {
+        const reportingCtx = document.getElementById('reportingChart').getContext('2d');
+        new Chart(reportingCtx, {
+            type: 'bar',
+            data: {
+                labels: reportingData.labels,
+                datasets: [{
+                    label: 'Reported',
+                    data: reportingData.reported,
+                    backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    borderWidth: 1
+                }, {
+                    label: 'Expected',
+                    data: reportingData.expected,
+                    backgroundColor: 'rgba(157, 1, 1, 0.8)',
+                    borderColor: 'rgba(157, 1, 1, 1)',
+                    borderWidth: 1
+                }]
             },
-            plugins: {
-                legend: {
-                    position: 'top'
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
                 },
-                tooltip: {
-                    callbacks: {
-                        afterBody: function(context) {
-                            const index = context[0].dataIndex;
-                            const percentage = reportingData.percentages[index];
-                            return `Reporting Rate: ${percentage}%`;
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            afterBody: function(context) {
+                                const index = context[0].dataIndex;
+                                const percentage = reportingData.percentages[index];
+                                return `Reporting Rate: ${percentage}%`;
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    } else {
+        document.getElementById('reportingChart').parentElement.innerHTML = '<p class="text-center text-muted">No reporting data available</p>';
+    }
 
     // Fee Collection Trends Chart
-    const collectionData = {{ collection_chart_data|safe }};
-    const collectionCtx = document.getElementById('collectionChart').getContext('2d');
-    new Chart(collectionCtx, {
-        type: 'line',
-        data: {
-            labels: collectionData.labels,
-            datasets: [{
-                label: 'Collection Amount (KES)',
-                data: collectionData.amounts,
-                borderColor: 'rgba(255, 99, 132, 1)',
-                backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                borderWidth: 2,
-                yAxisID: 'y',
-                tension: 0.4
-            }, {
-                label: 'Number of Payments',
-                data: collectionData.counts,
-                borderColor: 'rgba(54, 162, 235, 1)',
-                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                borderWidth: 2,
-                yAxisID: 'y1',
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                mode: 'index',
-                intersect: false,
+    if (collectionData && collectionData.labels && collectionData.labels.length > 0) {
+        const collectionCtx = document.getElementById('collectionChart').getContext('2d');
+        new Chart(collectionCtx, {
+            type: 'line',
+            data: {
+                labels: collectionData.labels,
+                datasets: [{
+                    label: 'Collection Amount (KES)',
+                    data: collectionData.amounts,
+                    borderColor: 'rgba(157, 1, 1, 1)',
+                    backgroundColor: 'rgba(157, 1, 1, 0.2)',
+                    borderWidth: 2,
+                    yAxisID: 'y',
+                    tension: 0.4
+                }, {
+                    label: 'Number of Payments',
+                    data: collectionData.counts,
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderWidth: 2,
+                    yAxisID: 'y1',
+                    tension: 0.4
+                }]
             },
-            scales: {
-                x: {
-                    display: true,
-                    title: {
-                        display: true,
-                        text: 'Month'
-                    }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
                 },
-                y: {
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    title: {
+                scales: {
+                    x: {
                         display: true,
-                        text: 'Amount (KES)'
+                        title: {
+                            display: true,
+                            text: 'Month'
+                        }
                     },
-                    ticks: {
-                        callback: function(value) {
-                            return 'KES ' + value.toLocaleString();
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Amount (KES)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return 'KES ' + value.toLocaleString();
+                            }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Number of Payments'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                        ticks: {
+                            precision: 0
                         }
                     }
                 },
-                y1: {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    title: {
-                        display: true,
-                        text: 'Number of Payments'
-                    },
-                    grid: {
-                        drawOnChartArea: false,
-                    },
-                    ticks: {
-                        precision: 0
+                plugins: {
+                    legend: {
+                        position: 'top'
                     }
                 }
-            },
-            plugins: {
-                legend: {
-                    position: 'top'
-                }
             }
-        }
-    });
+        });
+    } else {
+        document.getElementById('collectionChart').parentElement.innerHTML = '<p class="text-center text-muted">No collection data available</p>';
+    }
 
-    // Programme Performance Chart
-    const performanceData = {{ performance_chart_data|safe }};
-    const performanceCtx = document.getElementById('performanceChart').getContext('2d');
-    new Chart(performanceCtx, {
-        type: 'horizontalBar',
-        data: {
-            labels: performanceData.labels,
-            datasets: [{
-                label: 'Average GPA',
-                data: performanceData.data,
-                backgroundColor: 'rgba(153, 102, 255, 0.8)',
-                borderColor: 'rgba(153, 102, 255, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: 'y',
-            scales: {
-                x: {
-                    beginAtZero: true,
-                    max: 4.0,
-                    title: {
-                        display: true,
-                        text: 'GPA'
-                    }
-                }
+    // Programme Performance Chart - FIXED for Chart.js 3.9.1
+    if (performanceData && performanceData.labels && performanceData.labels.length > 0) {
+        const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+        new Chart(performanceCtx, {
+            type: 'bar', // ✅ Changed from 'horizontalBar' which doesn't exist in v3+
+            data: {
+                labels: performanceData.labels,
+                datasets: [{
+                    label: 'Average GPA',
+                    data: performanceData.data,
+                    backgroundColor: 'rgba(157, 1, 1, 0.8)',
+                    borderColor: 'rgba(157, 1, 1, 1)',
+                    borderWidth: 1
+                }]
             },
-            plugins: {
-                legend: {
-                    display: false
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y', // ✅ This makes it horizontal in Chart.js v3+
+                scales: {
+                    x: { // ✅ Fixed axis configuration for v3+
+                        beginAtZero: true,
+                        max: 4.0,
+                        title: {
+                            display: true,
+                            text: 'GPA'
+                        }
+                    }
                 },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return `Average GPA: ${context.raw}`;
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Average GPA: ${context.raw}`;
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    } else {
+        document.getElementById('performanceChart').parentElement.innerHTML = '<p class="text-center text-muted">No performance data available</p>';
+    }
 
     // Attendance Chart
     const attendanceCtx = document.getElementById('attendanceChart').getContext('2d');
-    const attendanceData = [
-        {% for status in attendance_summary %}
-            {% if status.status == 'present' %}{{ status.count }}{% else %}0{% endif %},
-        {% endfor %}
-        {% for status in attendance_summary %}
-            {% if status.status == 'absent' %}{{ status.count }}{% else %}0{% endif %},
-        {% endfor %}
-        {% for status in attendance_summary %}
-            {% if status.status == 'late' %}{{ status.count }}{% else %}0{% endif %},
-        {% endfor %}
-        {% for status in attendance_summary %}
-            {% if status.status == 'excused' %}{{ status.count }}{% else %}0{% endif %}
-        {% endfor %}
-    ];
+    
+    // Build attendance data array
+    const attendanceData = [];
+    const attendanceCounts = {
+        present: 0,
+        absent: 0,
+        late: 0,
+        excused: 0
+    };
+    
+    // Parse attendance summary from Django template
+    {% for status in attendance_summary %}
+        attendanceCounts['{{ status.status }}'] = {{ status.count }};
+    {% endfor %}
+    
+    attendanceData.push(attendanceCounts.present);
+    attendanceData.push(attendanceCounts.absent);
+    attendanceData.push(attendanceCounts.late);
+    attendanceData.push(attendanceCounts.excused);
 
-    new Chart(attendanceCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Present', 'Absent', 'Late', 'Excused'],
-            datasets: [{
-                data: attendanceData,
-                backgroundColor: [
-                    'rgba(40, 167, 69, 0.8)',
-                    'rgba(220, 53, 69, 0.8)',
-                    'rgba(255, 193, 7, 0.8)',
-                    'rgba(23, 162, 184, 0.8)'
-                ],
-                borderColor: [
-                    'rgba(40, 167, 69, 1)',
-                    'rgba(220, 53, 69, 1)',
-                    'rgba(255, 193, 7, 1)',
-                    'rgba(23, 162, 184, 1)'
-                ],
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        padding: 15,
-                        usePointStyle: true
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.raw;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                            return `${label}: ${value} (${percentage}%)`;
+    // Only create chart if there's data
+    const totalAttendance = attendanceData.reduce((a, b) => a + b, 0);
+    if (totalAttendance > 0) {
+        new Chart(attendanceCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Present', 'Absent', 'Late', 'Excused'],
+                datasets: [{
+                    data: attendanceData,
+                    backgroundColor: [
+                        'rgba(40, 167, 69, 0.8)',
+                        'rgba(157, 1, 1, 0.8)',
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(23, 162, 184, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(40, 167, 69, 1)',
+                        'rgba(157, 1, 1, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(23, 162, 184, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    } else {
+        document.getElementById('attendanceChart').parentElement.innerHTML = '<p class="text-center text-muted">No attendance data available</p>';
+    }
+    
+    console.log('All charts initialized successfully!');
 });
 </script>
 
@@ -831,19 +880,19 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 .border-left-primary {
-    border-left: 0.25rem solid #4e73df !important;
+    border-left: 0.25rem solid #9d0101 !important;
 }
 
 .border-left-success {
-    border-left: 0.25rem solid #1cc88a !important;
+    border-left: 0.25rem solid #28a745 !important;
 }
 
 .border-left-info {
-    border-left: 0.25rem solid #36b9cc !important;
+    border-left: 0.25rem solid #17a2b8 !important;
 }
 
 .border-left-warning {
-    border-left: 0.25rem solid #f6c23e !important;
+    border-left: 0.25rem solid #ffc107 !important;
 }
 
 .list-group-item {
@@ -869,7 +918,7 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 .primary-text {
-    color: #4e73df !important;
+    color: #9d0101 !important;
 }
 
 .font-weight-bold {
@@ -928,6 +977,34 @@ canvas {
 
 .chart-loading::after {
     content: "Loading chart...";
+}
+
+/* Error message styling */
+.text-center.text-muted {
+    padding: 2rem;
+    font-style: italic;
+}
+
+/* Button colors */
+.btn-primary {
+    background-color: #9d0101;
+    border-color: #9d0101;
+}
+
+.btn-primary:hover {
+    background-color: #7a0101;
+    border-color: #7a0101;
+}
+
+.text-primary {
+    color: #9d0101 !important;
+}
+
+/* Alert colors */
+.alert-primary {
+    background-color: rgba(157, 1, 1, 0.1);
+    border-color: rgba(157, 1, 1, 0.2);
+    color: #9d0101;
 }
 </style>
 {% endblock %}
