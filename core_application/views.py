@@ -1673,13 +1673,14 @@ from django.db import transaction
 from django.forms import modelformset_factory
 from django.core.exceptions import ValidationError
 from django.contrib import messages
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect  # Added redirect import
 from django.contrib.auth.decorators import login_required
 from .models import Student, Unit, Enrollment, Grade, Semester, AcademicYear
+from datetime import datetime
 import json
 
 @login_required
-def admin_marks_entry(request):
+def admin_marks_entry(request, registration_number=None):
     # Check if user is admin
     if request.user.user_type != 'admin':
         return HttpResponseForbidden("Access denied. Admins only.")
@@ -1696,54 +1697,54 @@ def admin_marks_entry(request):
     enrollments = []
     grades_data = {}
     
-    # Handle student search
-    if request.method == 'GET' and 'registration_number' in request.GET:
-        registration_number = request.GET.get('registration_number')
-        if registration_number:
-            try:
-                student = Student.objects.get(registration_number=registration_number, status='active')
-                
-                # Get enrollments for current semester
-                enrollments = Enrollment.objects.filter(
-                    student=student,
-                    semester=current_semester,
-                    is_active=True
-                ).select_related('unit').order_by('unit__code')
-                
-                # Get existing grades
-                for enrollment in enrollments:
-                    try:
-                        grade = Grade.objects.get(enrollment=enrollment)
-                        grades_data[enrollment.id] = {
-                            'theory_marks': grade.theory_marks,
-                            'practical_marks': grade.practical_marks,
-                            'clinical_marks': grade.clinical_marks,
-                            'continuous_assessment': grade.continuous_assessment,
-                            'final_exam_marks': grade.final_exam_marks,
-                            'total_marks': grade.total_marks,
-                            'grade': grade.grade,
-                            'grade_points': grade.grade_points,
-                            'is_passed': grade.is_passed,
-                            'exam_date': grade.exam_date.strftime('%Y-%m-%d') if grade.exam_date else '',
-                            'remarks': grade.remarks or ''
-                        }
-                    except Grade.DoesNotExist:
-                        grades_data[enrollment.id] = {
-                            'theory_marks': None,
-                            'practical_marks': None,
-                            'clinical_marks': None,
-                            'continuous_assessment': None,
-                            'final_exam_marks': None,
-                            'total_marks': None,
-                            'grade': '',
-                            'grade_points': None,
-                            'is_passed': False,
-                            'exam_date': '',
-                            'remarks': ''
-                        }
-                
-            except Student.DoesNotExist:
-                messages.error(request, f"Student with registration number '{registration_number}' not found or not active.")
+    # Handle student search - check both GET parameter and URL parameter
+    search_registration_number = registration_number or request.GET.get('registration_number')
+    
+    if search_registration_number:
+        try:
+            student = Student.objects.get(registration_number=search_registration_number, status='active')
+            
+            # Get enrollments for current semester
+            enrollments = Enrollment.objects.filter(
+                student=student,
+                semester=current_semester,
+                is_active=True
+            ).select_related('unit').order_by('unit__code')
+            
+            # Get existing grades
+            for enrollment in enrollments:
+                try:
+                    grade = Grade.objects.get(enrollment=enrollment)
+                    grades_data[enrollment.id] = {
+                        'theory_marks': float(grade.theory_marks) if grade.theory_marks else None,
+                        'practical_marks': float(grade.practical_marks) if grade.practical_marks else None,
+                        'clinical_marks': float(grade.clinical_marks) if grade.clinical_marks else None,
+                        'continuous_assessment': float(grade.continuous_assessment) if grade.continuous_assessment else None,
+                        'final_exam_marks': float(grade.final_exam_marks) if grade.final_exam_marks else None,
+                        'total_marks': float(grade.total_marks) if grade.total_marks else None,
+                        'grade': grade.grade,
+                        'grade_points': float(grade.grade_points) if grade.grade_points else None,
+                        'is_passed': grade.is_passed,
+                        'exam_date': grade.exam_date.strftime('%Y-%m-%d') if grade.exam_date else '',
+                        'remarks': grade.remarks or ''
+                    }
+                except Grade.DoesNotExist:
+                    grades_data[enrollment.id] = {
+                        'theory_marks': None,
+                        'practical_marks': None,
+                        'clinical_marks': None,
+                        'continuous_assessment': None,
+                        'final_exam_marks': None,
+                        'total_marks': None,
+                        'grade': '',
+                        'grade_points': None,
+                        'is_passed': False,
+                        'exam_date': '',
+                        'remarks': ''
+                    }
+            
+        except Student.DoesNotExist:
+            messages.error(request, f"Student with registration number '{search_registration_number}' not found or not active.")
     
     # Handle marks submission
     if request.method == 'POST' and 'save_marks' in request.POST:
@@ -1760,6 +1761,8 @@ def admin_marks_entry(request):
                 is_active=True
             ).select_related('unit')
             
+            saved_count = 0
+            
             with transaction.atomic():
                 for enrollment in enrollments:
                     enrollment_id = str(enrollment.id)
@@ -1773,50 +1776,84 @@ def admin_marks_entry(request):
                     exam_date = request.POST.get(f'exam_date_{enrollment_id}')
                     remarks = request.POST.get(f'remarks_{enrollment_id}')
                     
-                    # Convert to appropriate types
-                    theory_marks = float(theory_marks) if theory_marks else None
-                    practical_marks = float(practical_marks) if practical_marks else None
-                    clinical_marks = float(clinical_marks) if clinical_marks else None
-                    continuous_assessment = float(continuous_assessment) if continuous_assessment else None
-                    final_exam_marks = float(final_exam_marks) if final_exam_marks else None
-                    exam_date = exam_date if exam_date else None
+                    # Convert to appropriate types with proper validation
+                    def safe_float(value):
+                        if value and value.strip():
+                            try:
+                                return float(value)
+                            except ValueError:
+                                return None
+                        return None
+                    
+                    theory_marks = safe_float(theory_marks)
+                    practical_marks = safe_float(practical_marks)
+                    clinical_marks = safe_float(clinical_marks)
+                    continuous_assessment = safe_float(continuous_assessment)
+                    final_exam_marks = safe_float(final_exam_marks)
+                    
+                    # Handle exam date
+                    exam_date_obj = None
+                    if exam_date and exam_date.strip():
+                        try:
+                            exam_date_obj = datetime.strptime(exam_date, '%Y-%m-%d').date()
+                        except ValueError:
+                            pass  # Invalid date format, keep as None
+                    
                     remarks = remarks.strip() if remarks else ''
                     
-                    # Create or update grade (let the model's save method handle calculations)
-                    grade, created = Grade.objects.get_or_create(
-                        enrollment=enrollment,
-                        defaults={
-                            'theory_marks': theory_marks,
-                            'practical_marks': practical_marks,
-                            'clinical_marks': clinical_marks,
-                            'continuous_assessment': continuous_assessment,
-                            'final_exam_marks': final_exam_marks,
-                            'exam_date': exam_date,
-                            'remarks': remarks
-                        }
-                    )
+                    # Check if at least one mark is provided
+                    has_marks = any([
+                        theory_marks is not None,
+                        practical_marks is not None,
+                        clinical_marks is not None,
+                        continuous_assessment is not None,
+                        final_exam_marks is not None
+                    ])
                     
-                    if not created:
-                        grade.theory_marks = theory_marks
-                        grade.practical_marks = practical_marks
-                        grade.clinical_marks = clinical_marks
-                        grade.continuous_assessment = continuous_assessment
-                        grade.final_exam_marks = final_exam_marks
-                        grade.exam_date = exam_date
-                        grade.remarks = remarks
-                        grade.save()  # This will trigger the model's save method to calculate totals and grades
+                    if has_marks:
+                        # Create or update grade
+                        grade, created = Grade.objects.get_or_create(
+                            enrollment=enrollment,
+                            defaults={
+                                'theory_marks': theory_marks,
+                                'practical_marks': practical_marks,
+                                'clinical_marks': clinical_marks,
+                                'continuous_assessment': continuous_assessment,
+                                'final_exam_marks': final_exam_marks,
+                                'exam_date': exam_date_obj,
+                                'remarks': remarks
+                            }
+                        )
+                        
+                        if not created:
+                            # Update existing grade
+                            grade.theory_marks = theory_marks
+                            grade.practical_marks = practical_marks
+                            grade.clinical_marks = clinical_marks
+                            grade.continuous_assessment = continuous_assessment
+                            grade.final_exam_marks = final_exam_marks
+                            grade.exam_date = exam_date_obj
+                            grade.remarks = remarks
+                            grade.save()
+                        
+                        saved_count += 1
                 
-                messages.success(request, f"Marks saved successfully for student {student.registration_number}")
-                
-                # Redirect to student performance page after successful save
-                return redirect('student_performance', registration_number=registration_number)
+                if saved_count > 0:
+                    messages.success(request, f"Marks saved successfully for {saved_count} units for student {student.registration_number}")
+                    # Redirect to student performance page after successful save
+                    return redirect('student_performance', registration_number=registration_number)
+                else:
+                    messages.warning(request, "No marks were provided to save.")
                 
         except Student.DoesNotExist:
             messages.error(request, f"Student with registration number '{registration_number}' not found.")
         except Exception as e:
             messages.error(request, f"Error saving marks: {str(e)}")
+            # For debugging - remove in production
+            import traceback
+            print(traceback.format_exc())
     
-    # Get all active students for dropdown (optional)
+    # Get all active students for dropdown
     all_students = Student.objects.filter(status='active').select_related('user', 'programme').order_by('registration_number')
     
     context = {
