@@ -1302,22 +1302,70 @@ def student_detail(request, registration_number):
     return render(request, 'admin/students/student_detail.html', context)
 
 
+# views.py
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.hashers import make_password
+from django.db import transaction
+from .models import User, Student, Programme, School
+from .forms import UserForm, StudentForm
+
+
 @login_required
 def student_create(request):
     """
     Create a new student record
     """
     if request.method == 'POST':
-        # Handle form submission here
-        # This would typically use Django forms
-        messages.success(request, 'Student created successfully!')
-        return redirect('student_list')
+        user_form = UserForm(request.POST, request.FILES)
+        student_form = StudentForm(request.POST)
+        
+        if user_form.is_valid() and student_form.is_valid():
+            try:
+                with transaction.atomic():
+                    # Create user
+                    user = user_form.save(commit=False)
+                    user.user_type = 'student'
+                    
+                    # Set password
+                    password = user_form.cleaned_data.get('password')
+                    if password:
+                        user.password = make_password(password)
+                    
+                    user.save()
+                    
+                    # Create student profile
+                    student = student_form.save(commit=False)
+                    student.user = user
+                    student.save()
+                    
+                    messages.success(request, f'Student {user.get_full_name()} created successfully!')
+                    return redirect('student_list')
+                    
+            except Exception as e:
+                messages.error(request, f'Error creating student: {str(e)}')
+        else:
+            # Add form errors to messages
+            for field, errors in user_form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+            for field, errors in student_form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        user_form = UserForm()
+        student_form = StudentForm()
     
     # Get data for form dropdowns
     programmes = Programme.objects.filter(is_active=True).order_by('name')
     schools = School.objects.filter(is_active=True).order_by('name')
     
     context = {
+        'user_form': user_form,
+        'student_form': student_form,
+        'action': 'Create',
         'programmes': programmes,
         'schools': schools,
         'status_choices': Student.STATUS_CHOICES,
@@ -1326,7 +1374,7 @@ def student_create(request):
         'gender_choices': User.GENDER_CHOICES,
     }
     
-    return render(request, 'students/student_create.html', context)
+    return render(request, 'admin/students/student_form.html', context)
 
 
 @login_required
@@ -1335,19 +1383,54 @@ def student_update(request, registration_number):
     Update an existing student record
     """
     student = get_object_or_404(Student, registration_number=registration_number)
+    user = student.user
     
     if request.method == 'POST':
-        # Handle form submission here
-        # This would typically use Django forms
-        messages.success(request, 'Student updated successfully!')
-        return redirect('student_detail', registration_number=registration_number)
+        user_form = UserForm(request.POST, request.FILES, instance=user, is_update=True)
+        student_form = StudentForm(request.POST, instance=student)
+        
+        if user_form.is_valid() and student_form.is_valid():
+            try:
+                with transaction.atomic():
+                    # Update user
+                    user = user_form.save(commit=False)
+                    
+                    # Update password if provided
+                    password = user_form.cleaned_data.get('password')
+                    if password:
+                        user.password = make_password(password)
+                    
+                    user.save()
+                    
+                    # Update student profile
+                    student = student_form.save()
+                    
+                    messages.success(request, f'Student {user.get_full_name()} updated successfully!')
+                    return redirect('student_detail', registration_number=registration_number)
+                    
+            except Exception as e:
+                messages.error(request, f'Error updating student: {str(e)}')
+        else:
+            # Add form errors to messages
+            for field, errors in user_form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+            for field, errors in student_form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        user_form = UserForm(instance=user, is_update=True)
+        student_form = StudentForm(instance=student)
     
     # Get data for form dropdowns
     programmes = Programme.objects.filter(is_active=True).order_by('name')
     schools = School.objects.filter(is_active=True).order_by('name')
     
     context = {
+        'user_form': user_form,
+        'student_form': student_form,
         'student': student,
+        'action': 'Update',
         'programmes': programmes,
         'schools': schools,
         'status_choices': Student.STATUS_CHOICES,
@@ -1369,11 +1452,13 @@ def student_delete(request, registration_number):
     
     try:
         student_name = student.user.get_full_name()
+        student_reg_number = student.registration_number
         
         # Delete the user account (this will cascade to delete student record)
-        student.user.delete()
+        with transaction.atomic():
+            student.user.delete()
         
-        messages.success(request, f'Student {student_name} has been deleted successfully!')
+        messages.success(request, f'Student {student_name} ({student_reg_number}) has been deleted successfully!')
     except Exception as e:
         messages.error(request, f'Error deleting student: {str(e)}')
     
