@@ -28,4 +28,9 @@ urlpatterns = [
     path('ajax/rooms/', views.get_rooms_ajax, name='get_rooms_ajax'),
     path('ajax/beds/', views.get_beds_ajax, name='get_beds_ajax'),
 
+    # Admin authentication URLs
+    path('admin-login/', views.admin_login_view, name='admin_login'),
+    path('admin-logout/', views.admin_logout_view, name='admin_logout'),
+    #path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
+
 ]
