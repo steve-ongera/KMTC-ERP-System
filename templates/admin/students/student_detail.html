@@ -63,7 +63,7 @@
                     </div>
                     
                     <h4 class="mb-2">{{ student.user.get_full_name }}</h4>
-                    <p class="text-muted mb-3">{{ student.student_id }}</p>
+                    <p class="text-muted mb-3">{{ student.registration_number }}</p>
                     
                     <div class="student-status mb-3">
                         <span class="badge status-badge bg-{% if student.status == 'active' %}success{% elif student.status == 'suspended' %}warning text-dark{% else %}danger{% endif %}">

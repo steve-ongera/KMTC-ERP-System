@@ -12,14 +12,18 @@ class UserForm(forms.ModelForm):
             'class': 'form-control',
             'placeholder': 'Enter password'
         }),
-        required=False
+        required=False,
+        min_length=1,  # Allow any length starting from 1 character
+        help_text="Enter any password you prefer - no restrictions on length or complexity."
     )
     confirm_password = forms.CharField(
         widget=forms.PasswordInput(attrs={
             'class': 'form-control',
             'placeholder': 'Confirm password'
         }),
-        required=False
+        required=False,
+        min_length=1,  # Allow any length starting from 1 character
+        help_text="Re-enter the same password to confirm."
     )
 
     class Meta:
@@ -93,11 +97,24 @@ class UserForm(forms.ModelForm):
         # Add empty choice for gender
         self.fields['gender'].choices = [('', 'Select Gender')] + list(User.GENDER_CHOICES)
 
+    def clean_password(self):
+        """Allow any password without restrictions"""
+        password = self.cleaned_data.get('password')
+        # No validation - accept any password including simple ones like "monkey", "abc", "123", etc.
+        return password
+
+    def clean_confirm_password(self):
+        """Allow any confirm password without restrictions"""
+        confirm_password = self.cleaned_data.get('confirm_password')
+        # No validation - accept any confirm password
+        return confirm_password
+
     def clean(self):
         cleaned_data = super().clean()
         password = cleaned_data.get('password')
         confirm_password = cleaned_data.get('confirm_password')
 
+        # Only check if passwords match, no other restrictions
         if not self.is_update:
             if password and confirm_password and password != confirm_password:
                 raise ValidationError("Passwords don't match")
