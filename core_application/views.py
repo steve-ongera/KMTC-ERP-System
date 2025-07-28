@@ -1679,6 +1679,64 @@ from .models import Student, Unit, Enrollment, Grade, Semester, AcademicYear
 from datetime import datetime
 import json
 
+def calculate_grade_and_points(total_marks):
+    """
+    Calculate grade, grade points, and pass status based on total marks
+    """
+    if total_marks is None or total_marks == 0:
+        return '', 0.0, False
+    
+    if total_marks >= 90:
+        return 'A+', 4.0, True
+    elif total_marks >= 80:
+        return 'A', 4.0, True
+    elif total_marks >= 70:
+        return 'B+', 3.5, True
+    elif total_marks >= 60:
+        return 'B', 3.0, True
+    elif total_marks >= 50:
+        return 'C+', 2.5, True
+    elif total_marks >= 40:
+        return 'C', 2.0, True
+    elif total_marks >= 30:
+        return 'D', 1.0, False
+    else:
+        return 'F', 0.0, False
+
+def calculate_total_marks(theory_marks, practical_marks, clinical_marks, continuous_assessment, final_exam_marks):
+    """
+    Calculate total marks based on the same logic as JavaScript
+    """
+    # Collect component marks (theory, practical, clinical)
+    component_marks = []
+    
+    if theory_marks is not None:
+        component_marks.append(theory_marks)
+    if practical_marks is not None:
+        component_marks.append(practical_marks)
+    if clinical_marks is not None:
+        component_marks.append(clinical_marks)
+    
+    ca = continuous_assessment if continuous_assessment is not None else 0
+    final_exam = final_exam_marks if final_exam_marks is not None else 0
+    
+    # Calculate total
+    total = 0
+    
+    # If we have component marks, calculate their average and add CA
+    if component_marks:
+        component_average = sum(component_marks) / len(component_marks)
+        total = component_average + ca
+    else:
+        # If no component marks, just use CA
+        total = ca
+    
+    # Final exam mark is the same as total (not added to it)
+    if final_exam > 0:
+        total = final_exam
+    
+    return round(total, 2) if total > 0 else 0
+
 @login_required
 def admin_marks_entry(request, registration_number=None):
     # Check if user is admin
@@ -1791,6 +1849,21 @@ def admin_marks_entry(request, registration_number=None):
                     continuous_assessment = safe_float(continuous_assessment)
                     final_exam_marks = safe_float(final_exam_marks)
                     
+                    # Validate mark ranges
+                    def validate_mark_range(mark, max_value, field_name):
+                        if mark is not None and (mark < 0 or mark > max_value):
+                            raise ValidationError(f"{field_name} must be between 0 and {max_value}")
+                    
+                    try:
+                        validate_mark_range(theory_marks, 100, "Theory marks")
+                        validate_mark_range(practical_marks, 100, "Practical marks")
+                        validate_mark_range(clinical_marks, 100, "Clinical marks")
+                        validate_mark_range(continuous_assessment, 30, "Continuous Assessment")
+                        validate_mark_range(final_exam_marks, 100, "Final exam marks")
+                    except ValidationError as e:
+                        messages.error(request, f"Validation error for unit {enrollment.unit.code}: {str(e)}")
+                        continue
+                    
                     # Handle exam date
                     exam_date_obj = None
                     if exam_date and exam_date.strip():
@@ -1811,8 +1884,17 @@ def admin_marks_entry(request, registration_number=None):
                     ])
                     
                     if has_marks:
+                        # Calculate total marks
+                        total_marks = calculate_total_marks(
+                            theory_marks, practical_marks, clinical_marks, 
+                            continuous_assessment, final_exam_marks
+                        )
+                        
+                        # Calculate grade, grade points, and pass status
+                        grade, grade_points, is_passed = calculate_grade_and_points(total_marks)
+                        
                         # Create or update grade
-                        grade, created = Grade.objects.get_or_create(
+                        grade_obj, created = Grade.objects.get_or_create(
                             enrollment=enrollment,
                             defaults={
                                 'theory_marks': theory_marks,
@@ -1820,6 +1902,10 @@ def admin_marks_entry(request, registration_number=None):
                                 'clinical_marks': clinical_marks,
                                 'continuous_assessment': continuous_assessment,
                                 'final_exam_marks': final_exam_marks,
+                                'total_marks': total_marks,
+                                'grade': grade,
+                                'grade_points': grade_points,
+                                'is_passed': is_passed,
                                 'exam_date': exam_date_obj,
                                 'remarks': remarks
                             }
@@ -1827,14 +1913,18 @@ def admin_marks_entry(request, registration_number=None):
                         
                         if not created:
                             # Update existing grade
-                            grade.theory_marks = theory_marks
-                            grade.practical_marks = practical_marks
-                            grade.clinical_marks = clinical_marks
-                            grade.continuous_assessment = continuous_assessment
-                            grade.final_exam_marks = final_exam_marks
-                            grade.exam_date = exam_date_obj
-                            grade.remarks = remarks
-                            grade.save()
+                            grade_obj.theory_marks = theory_marks
+                            grade_obj.practical_marks = practical_marks
+                            grade_obj.clinical_marks = clinical_marks
+                            grade_obj.continuous_assessment = continuous_assessment
+                            grade_obj.final_exam_marks = final_exam_marks
+                            grade_obj.total_marks = total_marks
+                            grade_obj.grade = grade
+                            grade_obj.grade_points = grade_points
+                            grade_obj.is_passed = is_passed
+                            grade_obj.exam_date = exam_date_obj
+                            grade_obj.remarks = remarks
+                            grade_obj.save()
                         
                         saved_count += 1
                 

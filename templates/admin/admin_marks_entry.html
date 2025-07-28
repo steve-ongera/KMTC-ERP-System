@@ -201,7 +201,7 @@
                                         <th>Practical<br><small class="text-muted">({{ enrollments.0.unit.practical_hours }}hrs)</small></th>
                                         <th>Clinical<br><small class="text-muted">({{ enrollments.0.unit.clinical_hours }}hrs)</small></th>
                                         <th>C.A.<br><small class="text-muted">(30%)</small></th>
-                                        <th>Final<br><small class="text-muted">(70%)</small></th>
+                                        <th>Final<br><small class="text-muted">(0-100)</small></th>
                                         <th>Total</th>
                                         <th>Grade</th>
                                         <th>Status</th>
@@ -293,9 +293,9 @@
                                                    data-type="final"
                                                    value="{{ grades_data|get_nested:enrollment.id|get_item:'final_exam_marks'|default:'' }}"
                                                    min="0" 
-                                                   max="70" 
+                                                   max="100" 
                                                    step="0.01"
-                                                   placeholder="0-70">
+                                                   placeholder="0-100">
                                         </td>
                                         <!-- Total Marks -->
                                         <td>
@@ -415,45 +415,55 @@ function calculateTotal(enrollmentId) {
     const gradeSpan = document.querySelector(`span[data-enrollment="${enrollmentId}"].grade-badge`);
     const statusSpan = document.querySelector(`span[data-enrollment="${enrollmentId}"].status-badge`);
     
-    let theory = 0;
-    let practical = 0;
-    let clinical = 0;
+    let componentMarks = [];
     let ca = 0;
     let finalExam = 0;
-    let count = 0;
     
-    if (theoryInput && theoryInput.value) {
-        theory = parseFloat(theoryInput.value) || 0;
-        count++;
+    // Collect all component marks (theory, practical, clinical) that exist and have values
+    if (theoryInput && theoryInput.value && !isNaN(parseFloat(theoryInput.value))) {
+        componentMarks.push(parseFloat(theoryInput.value));
     }
     
-    if (practicalInput && practicalInput.value) {
-        practical = parseFloat(practicalInput.value) || 0;
-        count++;
+    if (practicalInput && practicalInput.value && !isNaN(parseFloat(practicalInput.value))) {
+        componentMarks.push(parseFloat(practicalInput.value));
     }
     
-    if (clinicalInput && clinicalInput.value) {
-        clinical = parseFloat(clinicalInput.value) || 0;
-        count++;
+    if (clinicalInput && clinicalInput.value && !isNaN(parseFloat(clinicalInput.value))) {
+        componentMarks.push(parseFloat(clinicalInput.value));
     }
     
-    if (caInput && caInput.value) {
-        ca = parseFloat(caInput.value) || 0;
+    // Get CA and Final exam marks
+    if (caInput && caInput.value && !isNaN(parseFloat(caInput.value))) {
+        ca = parseFloat(caInput.value);
     }
     
-    if (finalInput && finalInput.value) {
-        finalExam = parseFloat(finalInput.value) || 0;
+    if (finalInput && finalInput.value && !isNaN(parseFloat(finalInput.value))) {
+        finalExam = parseFloat(finalInput.value);
     }
     
-    // Calculate average of component marks, then add CA and final exam
-    const componentAverage = count > 0 ? (theory + practical + clinical) / count : 0;
-    const total = componentAverage + ca + finalExam;
+    // Calculate total
+    let total = 0;
     
+    // If we have component marks, calculate their average and add CA
+    if (componentMarks.length > 0) {
+        const componentAverage = componentMarks.reduce((sum, mark) => sum + mark, 0) / componentMarks.length;
+        total = componentAverage + ca;
+    } else {
+        // If no component marks, just use CA
+        total = ca;
+    }
+    
+    // Final exam mark is the same as total (not added to it)
+    if (finalExam > 0) {
+        total = finalExam;
+    }
+    
+    // Update total input
     if (totalInput) {
         totalInput.value = total > 0 ? total.toFixed(2) : '';
     }
     
-    // Calculate grade
+    // Calculate and update grade
     const gradeData = calculateGrade(total);
     
     if (gradeSpan) {
@@ -468,7 +478,7 @@ function calculateTotal(enrollmentId) {
 }
 
 function calculateGrade(total) {
-    if (total === 0) {
+    if (total === 0 || isNaN(total)) {
         return {
             grade: '-',
             status: 'Pending',
@@ -525,21 +535,37 @@ function calculateGrade(total) {
 }
 
 function calculateAllTotals() {
+    // Get all unique enrollment IDs
+    const enrollmentIds = new Set();
     document.querySelectorAll('.marks-input').forEach(function(input) {
         if (input.dataset.enrollment) {
-            calculateTotal(input.dataset.enrollment);
+            enrollmentIds.add(input.dataset.enrollment);
         }
+    });
+    
+    // Calculate totals for each enrollment
+    enrollmentIds.forEach(function(enrollmentId) {
+        calculateTotal(enrollmentId);
     });
 }
 
 function clearAllMarks() {
     if (confirm('Are you sure you want to clear all marks? This action cannot be undone.')) {
+        // Clear all input fields
         document.querySelectorAll('.marks-input').forEach(function(input) {
             input.value = '';
         });
         document.querySelectorAll('.total-marks').forEach(function(input) {
             input.value = '';
         });
+        document.querySelectorAll('input[type="date"]').forEach(function(input) {
+            input.value = '';
+        });
+        document.querySelectorAll('textarea').forEach(function(textarea) {
+            textarea.value = '';
+        });
+        
+        // Reset badges
         document.querySelectorAll('.grade-badge').forEach(function(span) {
             span.textContent = '-';
             span.className = 'badge grade-badge bg-secondary';
@@ -563,6 +589,29 @@ document.getElementById('marksForm')?.addEventListener('submit', function(e) {
     if (!hasMarks) {
         e.preventDefault();
         alert('Please enter at least one mark before saving.');
+        return false;
+    }
+    
+    // Validate mark ranges
+    let hasInvalidMarks = false;
+    document.querySelectorAll('.marks-input').forEach(function(input) {
+        if (input.value) {
+            const value = parseFloat(input.value);
+            const max = parseFloat(input.getAttribute('max'));
+            const min = parseFloat(input.getAttribute('min'));
+            
+            if (value > max || value < min) {
+                hasInvalidMarks = true;
+                input.style.borderColor = '#dc3545';
+            } else {
+                input.style.borderColor = '';
+            }
+        }
+    });
+    
+    if (hasInvalidMarks) {
+        e.preventDefault();
+        alert('Please check the highlighted fields. Some marks are outside the allowed range.');
         return false;
     }
 });
