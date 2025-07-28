@@ -61,5 +61,9 @@ urlpatterns = [
     path('schools/add/', views.school_create, name='school_create'),
     path('schools/<int:pk>/', views.school_detail, name='school_detail'),
     path('schools/<int:pk>/edit/', views.school_edit, name='school_edit'),
+
+    #students transcript
+    path('student/transcript/', views.student_transcript, name='student_transcript'),
+    path('student-download-transcript', views.student_transcript_pdf , name='student_transcript_pdf'),
     
 ]
