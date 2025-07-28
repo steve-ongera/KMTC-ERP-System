@@ -365,3 +365,267 @@ class StudentForm(forms.ModelForm):
                 )
         
         return cleaned_data
+    
+
+
+from django import forms
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from .models import Instructor, School
+
+User = get_user_model()
+
+class UserForm(forms.ModelForm):
+    """Form for User model fields"""
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        required=False,
+        help_text="Leave blank to keep current password (for updates)"
+    )
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        required=False,
+        help_text="Confirm password"
+    )
+    
+    class Meta:
+        model = User
+        fields = [
+            'username', 'first_name', 'last_name', 'email', 'phone',
+            'address', 'gender', 'date_of_birth', 'profile_picture', 'national_id'
+        ]
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+254...'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'gender': forms.Select(attrs={'class': 'form-select'}),
+            'date_of_birth': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'profile_picture': forms.FileInput(attrs={'class': 'form-control'}),
+            'national_id': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make password required only for new users
+        if not self.instance.pk:
+            self.fields['password'].required = True
+            self.fields['confirm_password'].required = True
+        
+        # Add required asterisk to required fields
+        for field_name, field in self.fields.items():
+            if field.required:
+                field.widget.attrs['required'] = True
+                if 'class' in field.widget.attrs:
+                    field.widget.attrs['class'] += ' required'
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get('password')
+        confirm_password = cleaned_data.get('confirm_password')
+        
+        # Password validation for new users or when password is being changed
+        if password or confirm_password:
+            if password != confirm_password:
+                raise ValidationError("Passwords don't match.")
+            
+            if len(password) < 8:
+                raise ValidationError("Password must be at least 8 characters long.")
+        
+        return cleaned_data
+    
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        password = self.cleaned_data.get('password')
+        
+        if password:
+            user.set_password(password)
+        
+        # Set user type for instructors
+        if not user.user_type:
+            user.user_type = 'instructor'
+        
+        if commit:
+            user.save()
+        return user
+
+
+class InstructorForm(forms.ModelForm):
+    """Form for Instructor model fields"""
+    
+    class Meta:
+        model = Instructor
+        fields = [
+            'employee_number', 'school', 'designation', 'employment_type',
+            'qualifications', 'specialization', 'professional_registration',
+            'experience_years', 'clinical_experience_years', 'salary',
+            'joining_date', 'contract_end_date', 'is_active'
+        ]
+        widgets = {
+            'employee_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'school': forms.Select(attrs={'class': 'form-select'}),
+            'designation': forms.Select(attrs={'class': 'form-select'}),
+            'employment_type': forms.Select(attrs={'class': 'form-select'}),
+            'qualifications': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'specialization': forms.TextInput(attrs={'class': 'form-control'}),
+            'professional_registration': forms.TextInput(attrs={'class': 'form-control'}),
+            'experience_years': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'clinical_experience_years': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'salary': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'joining_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'contract_end_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Filter active schools only
+        self.fields['school'].queryset = School.objects.filter(is_active=True).order_by('name')
+        
+        # Set initial values
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
+            self.fields['experience_years'].initial = 0
+            self.fields['clinical_experience_years'].initial = 0
+        
+        # Add help text
+        self.fields['employee_number'].help_text = "Unique employee identification number"
+        self.fields['qualifications'].help_text = "Educational qualifications and certifications"
+        self.fields['professional_registration'].help_text = "Professional body registration number (if applicable)"
+        self.fields['contract_end_date'].help_text = "Required for contract and part-time employees"
+        
+        # Conditional required fields based on employment type
+        if self.instance.pk and self.instance.employment_type in ['contract', 'part_time']:
+            self.fields['contract_end_date'].required = True
+    
+    def clean_employee_number(self):
+        employee_number = self.cleaned_data['employee_number']
+        
+        # Check for uniqueness (excluding current instance)
+        existing = Instructor.objects.filter(employee_number=employee_number)
+        if self.instance.pk:
+            existing = existing.exclude(pk=self.instance.pk)
+        
+        if existing.exists():
+            raise ValidationError("An instructor with this employee number already exists.")
+        
+        return employee_number
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        employment_type = cleaned_data.get('employment_type')
+        contract_end_date = cleaned_data.get('contract_end_date')
+        joining_date = cleaned_data.get('joining_date')
+        
+        # Validate contract end date for contract employees
+        if employment_type in ['contract', 'part_time'] and not contract_end_date:
+            raise ValidationError("Contract end date is required for contract and part-time employees.")
+        
+        # Validate date logic
+        if joining_date and contract_end_date and joining_date >= contract_end_date:
+            raise ValidationError("Contract end date must be after joining date.")
+        
+        return cleaned_data
+
+
+class InstructorSearchForm(forms.Form):
+    """Form for instructor search and filtering"""
+    search = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Search by name, employee number, email...'
+        })
+    )
+    
+    school = forms.ModelChoiceField(
+        queryset=School.objects.filter(is_active=True).order_by('name'),
+        required=False,
+        empty_label="All Schools",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    designation = forms.ChoiceField(
+        choices=[('', 'All Designations')] + list(Instructor.DESIGNATION_CHOICES),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    employment_type = forms.ChoiceField(
+        choices=[('', 'All Employment Types')] + list(Instructor.EMPLOYMENT_TYPES),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    status = forms.ChoiceField(
+        choices=[
+            ('', 'All Status'),
+            ('active', 'Active'),
+            ('inactive', 'Inactive'),
+        ],
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+
+class BulkActionForm(forms.Form):
+    """Form for bulk actions on instructors"""
+    ACTION_CHOICES = [
+        ('', 'Select Action'),
+        ('activate', 'Activate Selected'),
+        ('deactivate', 'Deactivate Selected'),
+        ('delete', 'Delete Selected'),
+    ]
+    
+    action = forms.ChoiceField(
+        choices=ACTION_CHOICES,
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    instructor_ids = forms.CharField(
+        widget=forms.HiddenInput(),
+        required=True
+    )
+    
+    def clean_instructor_ids(self):
+        ids = self.cleaned_data['instructor_ids']
+        if not ids:
+            raise ValidationError("No instructors selected.")
+        return ids.split(',')
+
+
+class InstructorImportForm(forms.Form):
+    """Form for importing instructors from CSV/Excel"""
+    file = forms.FileField(
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': '.csv,.xlsx,.xls'
+        }),
+        help_text="Upload CSV or Excel file with instructor data"
+    )
+    
+    update_existing = forms.BooleanField(
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        help_text="Update existing instructors with matching employee numbers"
+    )
+    
+    def clean_file(self):
+        file = self.cleaned_data['file']
+        
+        # Validate file size (max 5MB)
+        if file.size > 5 * 1024 * 1024:
+            raise ValidationError("File size cannot exceed 5MB.")
+        
+        # Validate file extension
+        allowed_extensions = ['.csv', '.xlsx', '.xls']
+        if not any(file.name.lower().endswith(ext) for ext in allowed_extensions):
+            raise ValidationError("Only CSV and Excel files are allowed.")
+        
+        return file

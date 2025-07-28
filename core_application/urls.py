@@ -43,5 +43,18 @@ urlpatterns = [
 
     path('admin-marks-entry/', views.admin_marks_entry, name='admin_marks_entry'),
     path('admin-student-info/', views.get_student_info, name='get_student_info'),
+
+    # Main instructor views
+    path('instructors/', views.instructor_list, name='instructor_list'),
+    path('instructors/create/', views.instructor_create, name='instructor_create'),
+    path('instructors/<str:employee_number>/', views.instructor_detail, name='instructor_detail'),
+    path('instructors/<str:employee_number>/edit/', views.instructor_update, name='instructor_update'),
+    path('instructors/<str:employee_number>/delete/', views.instructor_delete, name='instructor_delete'),
+
+    # AJAX and API endpoints
+    path('api/instructors/toggle-status/<str:employee_number>/', views.instructor_toggle_status, name='instructor_toggle_status'),
+    path('api/instructors/search/', views.instructor_search_api, name='instructor_search_api'),
+    path('instructors/bulk/action/', views.instructor_bulk_action, name='instructor_bulk_action'),
+    path('instructors/export/csv/', views.instructor_export, name='instructor_export'),
     
 ]

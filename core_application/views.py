@@ -2006,3 +2006,307 @@ def get_student_info(request):
         
     except Student.DoesNotExist:
         return JsonResponse({'error': 'Student not found'}, status=404)
+    
+#instructure management
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import get_user_model
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.urls import reverse
+from .models import Instructor, School, User
+from .forms import InstructorForm, UserForm  # You'll need to create these forms
+
+User = get_user_model()
+
+@login_required
+def instructor_list(request):
+    """Display list of all instructors with search and filtering"""
+    instructors = Instructor.objects.select_related('user', 'school').all()
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        instructors = instructors.filter(
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__username__icontains=search_query) |
+            Q(employee_number__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(designation__icontains=search_query) |
+            Q(school__name__icontains=search_query)
+        )
+    
+    # Filter by school
+    school_filter = request.GET.get('school', '')
+    if school_filter:
+        instructors = instructors.filter(school_id=school_filter)
+    
+    # Filter by designation
+    designation_filter = request.GET.get('designation', '')
+    if designation_filter:
+        instructors = instructors.filter(designation=designation_filter)
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter == 'active':
+        instructors = instructors.filter(is_active=True)
+    elif status_filter == 'inactive':
+        instructors = instructors.filter(is_active=False)
+    
+    # Ordering
+    order_by = request.GET.get('order_by', 'user__first_name')
+    if order_by in ['user__first_name', 'user__last_name', 'employee_number', 'designation', 'joining_date', 'school__name']:
+        instructors = instructors.order_by(order_by)
+    
+    # Pagination
+    paginator = Paginator(instructors, 20)  # Show 20 instructors per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get all schools for filter dropdown
+    schools = School.objects.filter(is_active=True).order_by('name')
+    
+    # Get designation choices for filter
+    designation_choices = Instructor.DESIGNATION_CHOICES
+    
+    context = {
+        'page_obj': page_obj,
+        'instructors': page_obj,
+        'search_query': search_query,
+        'schools': schools,
+        'designation_choices': designation_choices,
+        'school_filter': school_filter,
+        'designation_filter': designation_filter,
+        'status_filter': status_filter,
+        'order_by': order_by,
+        'total_instructors': instructors.count(),
+    }
+    
+    return render(request, 'instructors/instructor_list.html', context)
+
+
+@login_required
+def instructor_detail(request, employee_number):
+    """Display detailed view of a specific instructor"""
+    instructor = get_object_or_404(
+        Instructor.objects.select_related('user', 'school'),
+        employee_number=employee_number
+    )
+    
+    # You can add additional context here like:
+    # - Current teaching assignments
+    # - Student evaluations
+    # - Performance metrics
+    # - etc.
+    
+    context = {
+        'faculty': instructor,  # Using 'faculty' to match your template
+        'instructor': instructor,
+        # Add other context as needed
+    }
+    
+    return render(request, 'instructors/instructor_detail.html', context)
+
+
+@login_required
+def instructor_create(request):
+    """Create a new instructor"""
+    if request.method == 'POST':
+        user_form = UserForm(request.POST, request.FILES)
+        instructor_form = InstructorForm(request.POST)
+        
+        if user_form.is_valid() and instructor_form.is_valid():
+            # Create user first
+            user = user_form.save(commit=False)
+            user.user_type = 'instructor'  # Set user type
+            user.save()
+            
+            # Create instructor profile
+            instructor = instructor_form.save(commit=False)
+            instructor.user = user
+            instructor.save()
+            
+            messages.success(request, f'Instructor {user.get_full_name()} created successfully!')
+            return redirect('instructor_detail', employee_number=instructor.employee_number)
+    else:
+        user_form = UserForm()
+        instructor_form = InstructorForm()
+    
+    context = {
+        'user_form': user_form,
+        'instructor_form': instructor_form,
+        'is_create': True,
+    }
+    
+    return render(request, 'instructors/instructor_form.html', context)
+
+
+@login_required
+def instructor_update(request, employee_number):
+    """Update an existing instructor"""
+    instructor = get_object_or_404(Instructor, employee_number=employee_number)
+    
+    if request.method == 'POST':
+        user_form = UserForm(request.POST, request.FILES, instance=instructor.user)
+        instructor_form = InstructorForm(request.POST, instance=instructor)
+        
+        if user_form.is_valid() and instructor_form.is_valid():
+            user_form.save()
+            instructor_form.save()
+            
+            messages.success(request, f'Instructor {instructor.user.get_full_name()} updated successfully!')
+            return redirect('instructor_detail', employee_number=instructor.employee_number)
+    else:
+        user_form = UserForm(instance=instructor.user)
+        instructor_form = InstructorForm(instance=instructor)
+    
+    context = {
+        'user_form': user_form,
+        'instructor_form': instructor_form,
+        'instructor': instructor,
+        'is_create': False,
+    }
+    
+    return render(request, 'instructors/instructor_form.html', context)
+
+
+@login_required
+def instructor_delete(request, employee_number):
+    """Delete an instructor"""
+    instructor = get_object_or_404(Instructor, employee_number=employee_number)
+    
+    if request.method == 'POST':
+        instructor_name = instructor.user.get_full_name()
+        
+        # Delete the user (this will cascade delete the instructor due to OneToOneField)
+        instructor.user.delete()
+        
+        messages.success(request, f'Instructor {instructor_name} deleted successfully!')
+        return redirect('instructor_list')
+    
+    # If it's a GET request, show confirmation page
+    context = {
+        'instructor': instructor,
+        'faculty': instructor,  # For template compatibility
+    }
+    
+    return render(request, 'instructors/instructor_confirm_delete.html', context)
+
+
+@login_required
+def instructor_toggle_status(request, employee_number):
+    """Toggle instructor active/inactive status via AJAX"""
+    if request.method == 'POST':
+        instructor = get_object_or_404(Instructor, employee_number=employee_number)
+        instructor.is_active = not instructor.is_active
+        instructor.save()
+        
+        # Also update user status
+        instructor.user.is_active = instructor.is_active
+        instructor.user.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'is_active': instructor.is_active,
+            'message': f'Instructor status updated to {"Active" if instructor.is_active else "Inactive"}'
+        })
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
+
+
+@login_required
+def instructor_search_api(request):
+    """API endpoint for instructor search (for AJAX autocomplete)"""
+    query = request.GET.get('q', '')
+    
+    if len(query) < 2:
+        return JsonResponse({'results': []})
+    
+    instructors = Instructor.objects.filter(
+        Q(user__first_name__icontains=query) |
+        Q(user__last_name__icontains=query) |
+        Q(employee_number__icontains=query)
+    ).select_related('user', 'school')[:10]
+    
+    results = []
+    for instructor in instructors:
+        results.append({
+            'id': instructor.employee_number,
+            'text': f"{instructor.user.get_full_name()} ({instructor.employee_number})",
+            'designation': instructor.get_designation_display(),
+            'school': instructor.school.name,
+        })
+    
+    return JsonResponse({'results': results})
+
+
+# Additional utility views
+
+@login_required
+def instructor_export(request):
+    """Export instructors data to CSV/Excel"""
+    import csv
+    from django.http import HttpResponse
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="instructors.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'Employee Number', 'Full Name', 'Email', 'Phone', 'School', 
+        'Designation', 'Employment Type', 'Joining Date', 'Status'
+    ])
+    
+    instructors = Instructor.objects.select_related('user', 'school').all()
+    
+    for instructor in instructors:
+        writer.writerow([
+            instructor.employee_number,
+            instructor.user.get_full_name(),
+            instructor.user.email or '',
+            instructor.user.phone or '',
+            instructor.school.name,
+            instructor.get_designation_display(),
+            instructor.get_employment_type_display(),
+            instructor.joining_date.strftime('%Y-%m-%d'),
+            'Active' if instructor.is_active else 'Inactive'
+        ])
+    
+    return response
+
+
+@login_required
+def instructor_bulk_action(request):
+    """Handle bulk actions on multiple instructors"""
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        instructor_ids = request.POST.getlist('instructor_ids')
+        
+        if not instructor_ids:
+            messages.error(request, 'No instructors selected.')
+            return redirect('instructor_list')
+        
+        instructors = Instructor.objects.filter(employee_number__in=instructor_ids)
+        
+        if action == 'activate':
+            instructors.update(is_active=True)
+            User.objects.filter(instructor_profile__in=instructors).update(is_active=True)
+            messages.success(request, f'{instructors.count()} instructors activated.')
+            
+        elif action == 'deactivate':
+            instructors.update(is_active=False)
+            User.objects.filter(instructor_profile__in=instructors).update(is_active=False)
+            messages.success(request, f'{instructors.count()} instructors deactivated.')
+            
+        elif action == 'delete':
+            count = instructors.count()
+            # Delete users (this will cascade delete instructors)
+            User.objects.filter(instructor_profile__in=instructors).delete()
+            messages.success(request, f'{count} instructors deleted.')
+    
+    return redirect('instructor_list')
