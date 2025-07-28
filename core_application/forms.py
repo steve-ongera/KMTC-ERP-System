@@ -5,25 +5,22 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from .models import User, Student, Programme, School
 
+# forms.py
+from django import forms
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+from .models import User
 
 class UserForm(forms.ModelForm):
     password = forms.CharField(
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Enter password'
-        }),
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Enter password'}),
         required=False,
-        min_length=1,  # Allow any length starting from 1 character
-        help_text="Enter any password you prefer - no restrictions on length or complexity."
+        help_text="Leave blank to keep current password on update."
     )
     confirm_password = forms.CharField(
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Confirm password'
-        }),
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Confirm password'}),
         required=False,
-        min_length=1,  # Allow any length starting from 1 character
-        help_text="Re-enter the same password to confirm."
+        help_text="Re-enter password to confirm."
     )
 
     class Meta:
@@ -34,94 +31,30 @@ class UserForm(forms.ModelForm):
             'profile_picture', 'national_id'
         ]
         widgets = {
-            'username': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter username',
-                'required': True
-            }),
-            'email': forms.EmailInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter email address',
-                'required': True
-            }),
-            'first_name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter first name',
-                'required': True
-            }),
-            'last_name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter last name',
-                'required': True
-            }),
-            'phone': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter phone number'
-            }),
-            'address': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Enter address'
-            }),
-            'gender': forms.Select(attrs={
-                'class': 'form-select'
-            }),
-            'date_of_birth': forms.DateInput(attrs={
-                'class': 'form-control',
-                'type': 'date'
-            }),
-            'profile_picture': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'image/*'
-            }),
-            'national_id': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter national ID'
-            }),
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'gender': forms.Select(attrs={'class': 'form-select'}),
+            'date_of_birth': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'profile_picture': forms.FileInput(attrs={'class': 'form-control'}),
+            'national_id': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):
         self.is_update = kwargs.pop('is_update', False)
+        self.user_type = kwargs.pop('user_type', 'instructor')  # Default to instructor
         super().__init__(*args, **kwargs)
-        
-        # Make required fields
-        required_fields = ['username', 'email', 'first_name', 'last_name']
-        for field_name in required_fields:
-            self.fields[field_name].required = True
-        
-        # Make password fields required only for creation
+
+        # Password fields required only on create
         if not self.is_update:
             self.fields['password'].required = True
             self.fields['confirm_password'].required = True
-        
-        # Add empty choice for gender
+
+        # Add gender placeholder
         self.fields['gender'].choices = [('', 'Select Gender')] + list(User.GENDER_CHOICES)
-
-    def clean_password(self):
-        """Allow any password without restrictions"""
-        password = self.cleaned_data.get('password')
-        # No validation - accept any password including simple ones like "monkey", "abc", "123", etc.
-        return password
-
-    def clean_confirm_password(self):
-        """Allow any confirm password without restrictions"""
-        confirm_password = self.cleaned_data.get('confirm_password')
-        # No validation - accept any confirm password
-        return confirm_password
-
-    def clean(self):
-        cleaned_data = super().clean()
-        password = cleaned_data.get('password')
-        confirm_password = cleaned_data.get('confirm_password')
-
-        # Only check if passwords match, no other restrictions
-        if not self.is_update:
-            if password and confirm_password and password != confirm_password:
-                raise ValidationError("Passwords don't match")
-        elif password and confirm_password and password != confirm_password:
-            raise ValidationError("Passwords don't match")
-
-        return cleaned_data
 
     def clean_email(self):
         email = self.cleaned_data.get('email')
@@ -144,15 +77,45 @@ class UserForm(forms.ModelForm):
         return username
 
     def clean_date_of_birth(self):
-        date_of_birth = self.cleaned_data.get('date_of_birth')
-        if date_of_birth:
+        dob = self.cleaned_data.get('date_of_birth')
+        if dob:
             today = timezone.now().date()
-            age = today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
+            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
             if age < 16:
-                raise ValidationError("Student must be at least 16 years old.")
+                raise ValidationError("User must be at least 16 years old.")
             if age > 80:
                 raise ValidationError("Please check the date of birth.")
-        return date_of_birth
+        return dob
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get('password')
+        confirm_password = cleaned_data.get('confirm_password')
+
+        if password or confirm_password:
+            if password != confirm_password:
+                raise ValidationError("Passwords do not match.")
+
+            if not self.is_update and len(password) < 8:
+                raise ValidationError("Password must be at least 8 characters.")
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        password = self.cleaned_data.get('password')
+
+        if password:
+            user.set_password(password)
+
+        # Automatically set user type only on creation
+        if not user.pk or not user.user_type:
+            user.user_type = self.user_type
+
+        if commit:
+            user.save()
+        return user
+
 
 
 class StudentForm(forms.ModelForm):
@@ -375,81 +338,81 @@ from .models import Instructor, School
 
 User = get_user_model()
 
-class UserForm(forms.ModelForm):
-    """Form for User model fields"""
-    password = forms.CharField(
-        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
-        required=False,
-        help_text="Leave blank to keep current password (for updates)"
-    )
-    confirm_password = forms.CharField(
-        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
-        required=False,
-        help_text="Confirm password"
-    )
+# class UserForm(forms.ModelForm):
+#     """Form for User model fields"""
+#     password = forms.CharField(
+#         widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+#         required=False,
+#         help_text="Leave blank to keep current password (for updates)"
+#     )
+#     confirm_password = forms.CharField(
+#         widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+#         required=False,
+#         help_text="Confirm password"
+#     )
     
-    class Meta:
-        model = User
-        fields = [
-            'username', 'first_name', 'last_name', 'email', 'phone',
-            'address', 'gender', 'date_of_birth', 'profile_picture', 'national_id'
-        ]
-        widgets = {
-            'username': forms.TextInput(attrs={'class': 'form-control'}),
-            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+254...'}),
-            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'gender': forms.Select(attrs={'class': 'form-select'}),
-            'date_of_birth': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'profile_picture': forms.FileInput(attrs={'class': 'form-control'}),
-            'national_id': forms.TextInput(attrs={'class': 'form-control'}),
-        }
+#     class Meta:
+#         model = User
+#         fields = [
+#             'username', 'first_name', 'last_name', 'email', 'phone',
+#             'address', 'gender', 'date_of_birth', 'profile_picture', 'national_id'
+#         ]
+#         widgets = {
+#             'username': forms.TextInput(attrs={'class': 'form-control'}),
+#             'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+#             'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+#             'email': forms.EmailInput(attrs={'class': 'form-control'}),
+#             'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+254...'}),
+#             'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+#             'gender': forms.Select(attrs={'class': 'form-select'}),
+#             'date_of_birth': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+#             'profile_picture': forms.FileInput(attrs={'class': 'form-control'}),
+#             'national_id': forms.TextInput(attrs={'class': 'form-control'}),
+#         }
     
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Make password required only for new users
-        if not self.instance.pk:
-            self.fields['password'].required = True
-            self.fields['confirm_password'].required = True
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         # Make password required only for new users
+#         if not self.instance.pk:
+#             self.fields['password'].required = True
+#             self.fields['confirm_password'].required = True
         
-        # Add required asterisk to required fields
-        for field_name, field in self.fields.items():
-            if field.required:
-                field.widget.attrs['required'] = True
-                if 'class' in field.widget.attrs:
-                    field.widget.attrs['class'] += ' required'
+#         # Add required asterisk to required fields
+#         for field_name, field in self.fields.items():
+#             if field.required:
+#                 field.widget.attrs['required'] = True
+#                 if 'class' in field.widget.attrs:
+#                     field.widget.attrs['class'] += ' required'
     
-    def clean(self):
-        cleaned_data = super().clean()
-        password = cleaned_data.get('password')
-        confirm_password = cleaned_data.get('confirm_password')
+#     def clean(self):
+#         cleaned_data = super().clean()
+#         password = cleaned_data.get('password')
+#         confirm_password = cleaned_data.get('confirm_password')
         
-        # Password validation for new users or when password is being changed
-        if password or confirm_password:
-            if password != confirm_password:
-                raise ValidationError("Passwords don't match.")
+#         # Password validation for new users or when password is being changed
+#         if password or confirm_password:
+#             if password != confirm_password:
+#                 raise ValidationError("Passwords don't match.")
             
-            if len(password) < 8:
-                raise ValidationError("Password must be at least 8 characters long.")
+#             if len(password) < 8:
+#                 raise ValidationError("Password must be at least 8 characters long.")
         
-        return cleaned_data
+#         return cleaned_data
     
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        password = self.cleaned_data.get('password')
+#     def save(self, commit=True):
+#         user = super().save(commit=False)
+#         password = self.cleaned_data.get('password')
         
-        if password:
-            user.set_password(password)
+#         if password:
+#             user.set_password(password)
         
-        # Set user type for instructors
-        if not user.user_type:
-            user.user_type = 'instructor'
+#         # Set user type for instructors
+#         if not user.user_type:
+#             user.user_type = 'instructor'
         
-        if commit:
-            user.save()
-        return user
+#         if commit:
+#             user.save()
+#         return user
 
 
 class InstructorForm(forms.ModelForm):
