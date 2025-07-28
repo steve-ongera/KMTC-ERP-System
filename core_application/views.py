@@ -1031,7 +1031,7 @@ def admin_dashboard(request):
     else:
         attendance_summary = []
     
-    # Programme Performance (Average GPA by Programme)
+    # Programme Performance (Average GPA by Programme) - FIXED
     programme_performance = []
     for programme in Programme.objects.filter(is_active=True)[:10]:
         avg_gpa = Grade.objects.filter(
@@ -1042,7 +1042,7 @@ def admin_dashboard(request):
         if avg_gpa:
             programme_performance.append({
                 'programme': programme.name[:20] + '...' if len(programme.name) > 20 else programme.name,
-                'avg_gpa': round(avg_gpa, 2)
+                'avg_gpa': float(avg_gpa)  # Convert Decimal to float
             })
     
     programme_performance.sort(key=lambda x: x['avg_gpa'], reverse=True)
@@ -1091,7 +1091,7 @@ def admin_dashboard(request):
     recent_activities.sort(key=lambda x: x['date'], reverse=True)
     recent_activities = recent_activities[:10]
     
-    # Top Performing Students (by GPA)
+    # Top Performing Students (by GPA) - FIXED
     top_students = []
     for student in Student.objects.filter(status='active')[:20]:
         avg_gpa = Grade.objects.filter(
@@ -1102,7 +1102,7 @@ def admin_dashboard(request):
         if avg_gpa and avg_gpa > 0:
             top_students.append({
                 'student': student,
-                'gpa': round(avg_gpa, 2)
+                'gpa': float(avg_gpa)  # Convert Decimal to float
             })
     
     top_students.sort(key=lambda x: x['gpa'], reverse=True)
