@@ -629,3 +629,61 @@ class InstructorImportForm(forms.Form):
             raise ValidationError("Only CSV and Excel files are allowed.")
         
         return file
+    
+from django import forms
+from .models import School
+
+class SchoolForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add form-control class to all fields except checkbox
+        for field_name, field in self.fields.items():
+            if field_name != 'is_active':
+                field.widget.attrs['class'] = 'form-control'
+            if field_name == 'dean':
+                field.widget.attrs['class'] = 'form-select'
+            if field_name == 'established_date':
+                field.widget.attrs['placeholder'] = 'Select date'
+            if field_name in ['name', 'code']:
+                field.widget.attrs['placeholder'] = f'Enter {field.label.lower()}'
+
+    class Meta:
+        model = School
+        fields = '__all__'
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter school name'
+            }),
+            'code': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter school code'
+            }),
+            'dean': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'established_date': forms.DateInput(attrs={
+                'type': 'date',
+                'class': 'form-control'
+            }),
+            'description': forms.Textarea(attrs={
+                'rows': 3,
+                'class': 'form-control',
+                'placeholder': 'Enter school description...'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+        labels = {
+            'name': 'School Name',
+            'code': 'School Code',
+            'dean': 'School Dean',
+            'established_date': 'Established Date',
+            'description': 'Description',
+            'is_active': 'Is Active',
+        }
+        help_texts = {
+            'code': 'Unique code for the school (e.g., SON for School of Nursing)',
+            'established_date': 'Date when the school was established',
+        }

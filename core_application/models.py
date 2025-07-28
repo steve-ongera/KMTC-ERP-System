@@ -50,7 +50,7 @@ class User(AbstractUser):
     def __str__(self):
         return f"{self.username} ({self.user_type})"
 
-# Academic Structure Models
+# Academic Structure Models (act as also department )
 class School(models.Model):
     """KMTC Schools like School of Nursing, School of Medical Laboratory, etc."""
     name = models.CharField(max_length=100)

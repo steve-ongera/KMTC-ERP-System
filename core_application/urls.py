@@ -56,5 +56,10 @@ urlpatterns = [
     path('api/instructors/search/', views.instructor_search_api, name='instructor_search_api'),
     path('instructors/bulk/action/', views.instructor_bulk_action, name='instructor_bulk_action'),
     path('instructors/export/csv/', views.instructor_export, name='instructor_export'),
+
+    path('schools/', views.school_list, name='school_list'),
+    path('schools/add/', views.school_create, name='school_create'),
+    path('schools/<int:pk>/', views.school_detail, name='school_detail'),
+    path('schools/<int:pk>/edit/', views.school_edit, name='school_edit'),
     
 ]

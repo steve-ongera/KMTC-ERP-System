@@ -2310,3 +2310,58 @@ def instructor_bulk_action(request):
             messages.success(request, f'{count} instructors deleted.')
     
     return redirect('instructor_list')
+
+#departments
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from .models import School, User
+from .forms import SchoolForm
+
+def school_list(request):
+    schools = School.objects.all().order_by('name')
+    context = {
+        'schools': schools,
+        'is_create': False
+    }
+    return render(request, 'school/school_list.html', context)
+
+def school_create(request):
+    if request.method == 'POST':
+        form = SchoolForm(request.POST)
+        if form.is_valid():
+            school = form.save()
+            messages.success(request, f'School "{school.name}" created successfully!')
+            return redirect('school_detail', pk=school.pk)
+    else:
+        form = SchoolForm()
+    
+    context = {
+        'form': form,
+        'is_create': True
+    }
+    return render(request, 'school/school_form.html', context)
+
+def school_detail(request, pk):
+    school = get_object_or_404(School, pk=pk)
+    context = {
+        'school': school
+    }
+    return render(request, 'school/school_detail.html', context)
+
+def school_edit(request, pk):
+    school = get_object_or_404(School, pk=pk)
+    if request.method == 'POST':
+        form = SchoolForm(request.POST, instance=school)
+        if form.is_valid():
+            updated_school = form.save()
+            messages.success(request, f'School "{updated_school.name}" updated successfully!')
+            return redirect('school_detail', pk=school.pk)
+    else:
+        form = SchoolForm(instance=school)
+    
+    context = {
+        'form': form,
+        'school': school,
+        'is_create': False
+    }
+    return render(request, 'school/school_form.html', context)
